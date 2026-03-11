@@ -1,0 +1,1 @@
+# Demo Playlist\n\nconst playlist = [\n    'E6ZaFdwpFhk',\n    'HdXYPGmzGlk',\n    'G9eVF2jFHNY',\n    'dQw4w9WgXcQ',\n    'jNQXAC9IVRw'\n];\n\nsub main() {\n    for each videoId in playlist {\n        playVideo(videoId);\n    }\n}\n\nsub playVideo(videoId) {\n    ' Implement video playing logic here using roSGScreen and Video node\n}

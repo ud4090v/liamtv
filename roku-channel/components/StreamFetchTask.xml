@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="StreamFetchTask" extends="Task">
+    <script type="text/brightscript" uri="pkg:/components/StreamFetchTask.brs" />
+    <interface>
+        <field id="videoId" type="string" />
+        <field id="apiUrl"  type="string" />
+        <field id="apiKey"  type="string" />
+        <field id="result"  type="assocarray" />
+    </interface>
+</component>

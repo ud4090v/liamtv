@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="VideoPlayer" extends="Group">
+    <script type="text/brightscript" uri="pkg:/components/VideoPlayer.brs" />
+    <interface>
+        <field id="control" type="string" onChange="onControlChange" />
+        <field id="state" type="string" value="idle" />
+    </interface>
+    <children>
+        <!-- Full screen video -->
+        <Video
+            id="video"
+            width="1920"
+            height="1080"
+            translation="[0,0]"
+        />
+        <!-- Title overlay -->
+        <Rectangle
+            id="titleBg"
+            width="1920"
+            height="120"
+            translation="[0,880]"
+            color="0x00000099"
+            opacity="0"
+        />
+        <Label
+            id="titleLabel"
+            width="1820"
+            height="80"
+            translation="[50,910]"
+            font="font:LargeBoldSystemFont"
+            color="0xFFFFFFFF"
+            text=""
+            opacity="0"
+        />
+        <!-- Loading label -->
+        <Label
+            id="loadingLabel"
+            width="1920"
+            height="80"
+            translation="[0,500]"
+            horizAlign="center"
+            font="font:LargeBoldSystemFont"
+            color="0xFFFFFFFF"
+            text="🚛 Loading Monster Truck TV..."
+        />
+    </children>
+</component>
