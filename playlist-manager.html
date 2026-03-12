@@ -237,7 +237,7 @@ select option{background:#1c1c2e}
     <div class="section">
       <div class="section-title"><span>📺</span> TV Link</div>
       <p style="color:var(--muted);font-size:14px;margin-bottom:20px;line-height:1.6">
-        This link contains your full playlist. Open it on your Roku or smart TV browser, or enter it in the Roku YouTube TV channel. The link updates every time your playlist changes.
+        This link contains your full playlist and plays videos in a kid-friendly fullscreen player with sleep timer. Open it on any device with a web browser connected to your TV.
       </p>
       <button class="btn btn-primary" onclick="generateTVLink()" style="margin-bottom:20px">🔄 Generate / Update TV Link</button>
       <div id="exportBox" style="display:none">
@@ -250,13 +250,14 @@ select option{background:#1c1c2e}
           </div>
           <div class="divider"></div>
           <div style="font-size:13px;color:var(--muted);line-height:1.7">
-            <strong style="color:var(--text)">On your Roku:</strong><br/>
-            1. Deploy both HTML files to Netlify<br/>
-            2. The Roku app will auto-load this link<br/>
-            3. Or enter the URL in any TV browser<br/><br/>
+            <strong style="color:var(--text)">How to watch on your TV:</strong><br/>
+            <strong>Fire TV Stick</strong> — Open Silk or Firefox browser, paste the link<br/>
+            <strong>Smart TV</strong> — Use the built-in browser (Samsung, LG, Sony, etc.)<br/>
+            <strong>Chromecast</strong> — Open link in Chrome on your phone, tap Cast<br/>
+            <strong>Game console</strong> — Xbox/PlayStation both have web browsers<br/>
+            <strong>Any computer/tablet</strong> — Connect to TV via HDMI and open the link<br/><br/>
             <strong style="color:var(--text)">Updating the playlist:</strong><br/>
-            Just regenerate the link and the TV app will use it next time it loads. 
-            For persistent updates without re-entering the URL, save the link in the Roku channel's manifest.
+            Just edit your playlist here, regenerate the link, and open the new link on your TV.
           </div>
         </div>
       </div>
@@ -559,7 +560,13 @@ function copyTVLink() {
 
 function openTVPlayer() {
   const url = document.getElementById('exportUrl').textContent;
-  window.open(url, '_blank');
+  const a = document.createElement('a');
+  a.href = url;
+  a.target = '_blank';
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 // ── UTILS ──
