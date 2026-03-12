@@ -406,21 +406,53 @@ async function playPlaylist(name) {
 }
 
 function createNewPlaylist() {
-  const name = prompt('Playlist name:');
-  if (!name || !name.trim()) return;
-  const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  currentPlaylistName = slug;
+  // Start with a temp name — AI will rename after videos are added
+  currentPlaylistName = '_new-' + Date.now();
   playlist = [];
-  settings.channelName = name.trim();
-  // Save empty playlist to server
-  fetch(`/api/playlist?name=${encodeURIComponent(slug)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ videos: [], settings })
-  }).then(() => {
-    document.getElementById('homeScreen').style.display = 'none';
-    openPlaylistMgr();
-  });
+  settings.channelName = 'New Playlist';
+  document.getElementById('homeScreen').style.display = 'none';
+  openPlaylistMgr();
+}
+
+async function autoNamePlaylist() {
+  if (!playlist.length || !currentPlaylistName) return;
+  try {
+    const titles = playlist.map(v => v.title).join(', ');
+    const resp = await fetch('/api/anthropic', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 100,
+        system: 'Generate a short, fun playlist name for a kids TV playlist based on the video titles. Return ONLY a JSON object: {"name": "short-slug", "title": "Display Title with Emoji"}. The slug should be lowercase with hyphens. The title should be 2-4 words with one relevant emoji. Keep it kid-friendly.',
+        messages: [{ role: 'user', content: `Videos: ${titles}` }]
+      })
+    });
+    const data = await resp.json();
+    const result = JSON.parse(data.content[0].text.replace(/```json|```/g, '').trim());
+    
+    // Delete the temp playlist if it was a temp name
+    const oldName = currentPlaylistName;
+    if (oldName.startsWith('_new-')) {
+      fetch(`/api/playlist?name=${encodeURIComponent(oldName)}`, { method: 'DELETE' }).catch(() => {});
+    }
+    
+    // Save with the new name
+    currentPlaylistName = result.name;
+    settings.channelName = result.title;
+    applySettings();
+    await pmSavePlaylist();
+    document.getElementById('pmStatus').textContent = `${playlist.length} videos · "${result.title}"`;
+  } catch(e) {
+    console.warn('Auto-name failed:', e);
+    // Fallback: use generic name
+    if (currentPlaylistName.startsWith('_new-')) {
+      const fallback = 'playlist-' + Date.now().toString(36);
+      currentPlaylistName = fallback;
+      settings.channelName = 'My Playlist 🎬';
+      await pmSavePlaylist();
+    }
+  }
 }
 
 function goHome() {
@@ -726,7 +758,15 @@ function openPlaylistMgr() {
 function closePlaylistMgr() {
   pmOpen = false;
   document.getElementById('playlistMgr').classList.remove('open');
-  if (ytPlayer) { try { ytPlayer.playVideo(); } catch(e){} }
+  // Auto-name if still a temp playlist with videos
+  if (currentPlaylistName?.startsWith('_new-') && playlist.length > 0) {
+    autoNamePlaylist();
+  }
+  if (ytPlayer && playlist.length > 0) { try { ytPlayer.playVideo(); } catch(e){} }
+  // If no videos were added, go back home
+  if (playlist.length === 0 && currentPlaylistName?.startsWith('_new-')) {
+    goHome();
+  }
 }
 
 function renderPmList() {
@@ -912,6 +952,11 @@ function pmAddVideo(i) {
     currentIdx = 0;
     document.getElementById('homeScreen').style.display = 'none';
     initPlayer();
+  }
+  // Auto-name new playlists after 3+ videos added
+  if (currentPlaylistName?.startsWith('_new-') && playlist.length >= 3) {
+    document.getElementById('pmStatus').textContent = '🤖 Naming your playlist...';
+    autoNamePlaylist();
   }
 }
 
