@@ -468,10 +468,19 @@ function goHome() {
 }
 
 function exitApp() {
-  // Try to close the window (works in WebView/standalone), fallback to blank
-  window.close();
-  // If window.close didn't work (browser won't allow), go to blank
-  setTimeout(() => { document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#000;color:rgba(255,255,255,.2);font-family:sans-serif;font-size:20px">Goodbye! 🚛</div>'; }, 200);
+  // In Android WebView: navigate to a custom scheme the Java side can intercept
+  // Or use history.back() which triggers onBackPressed in the Activity
+  // Try multiple approaches
+  if (window.LiamTV && window.LiamTV.exit) {
+    window.LiamTV.exit(); // JS interface if we add one
+  } else {
+    // Navigate back until we can't — Android will close the activity
+    window.close();
+    // Fallback: go back repeatedly to trigger Android back handler
+    setTimeout(() => { history.back(); }, 100);
+    setTimeout(() => { history.back(); }, 300);
+    setTimeout(() => { history.back(); }, 500);
+  }
 }
 
 function applySettings() {

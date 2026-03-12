@@ -160,6 +160,13 @@ public class MainActivity extends Activity {
         ws.setUserAgentString(ws.getUserAgentString() + " LiamTV-Android/1.0");
         webView.setInitialScale(0);
 
+        webView.addJavascriptInterface(new Object() {
+            @android.webkit.JavascriptInterface
+            public void exit() {
+                runOnUiThread(() -> finish());
+            }
+        }, "LiamTV");
+
         webView.setWebViewClient(new WebViewClient());
 
         webView.setWebChromeClient(new WebChromeClient() {
