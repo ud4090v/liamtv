@@ -212,7 +212,7 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
 <body>
 
 <!-- Video Player -->
-<div id="ytPlayer"><div id="player"></div></div>
+<div id="ytPlayer" style="display:none"><div id="player"></div></div>
 
 <!-- Dim / sleep overlay -->
 <div id="dimOverlay"></div>
@@ -227,7 +227,7 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
 </div>
 
 <!-- HUD -->
-<div id="hud">
+<div id="hud" style="display:none">
   <div id="topBar">
     <div class="channel-name" id="channelNameEl">🚛 Liam TV</div>
     <div class="hud-pills">
@@ -509,6 +509,8 @@ function goHome() {
   hidePauseOverlay();
   closePlaylistMgr();
   document.getElementById('liamTVPause').style.display = 'none';
+  document.getElementById('ytPlayer').style.display = 'none';
+  document.getElementById('hud').style.display = 'none';
   loadHomeScreen();
 }
 
@@ -707,6 +709,8 @@ async function liamTVNext() {
 
 // ──────────────────────────── YOUTUBE PLAYER ────────────────────────────
 function initPlayer() {
+  document.getElementById('ytPlayer').style.display = '';
+  document.getElementById('hud').style.display = '';
   if (ytReady) createPlayer();
 }
 
