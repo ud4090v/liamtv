@@ -16,7 +16,7 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  if (e.request.url.includes('/.netlify/functions/') ||
+  if (e.request.url.includes('/api/') ||
       e.request.url.includes('youtube.com') ||
       e.request.url.includes('googleapis.com') ||
       e.request.url.includes('anthropic.com')) {

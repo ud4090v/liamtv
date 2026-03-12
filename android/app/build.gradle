@@ -13,8 +13,8 @@ android {
         versionCode 1
         versionName "1.0"
 
-        // Set your Netlify site URL here
-        buildConfigField "String", "TV_PLAYER_URL", "\"https://YOURSITE.netlify.app/tv-player.html\""
+        // Set your site URL here
+        buildConfigField "String", "TV_PLAYER_URL", "\"https://liamtv.vercel.app/tv-player.html\""
     }
 
     buildTypes {
