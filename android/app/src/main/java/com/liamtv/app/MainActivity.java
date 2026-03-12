@@ -76,7 +76,7 @@ public class MainActivity extends Activity {
         layout.setPadding(60, 40, 60, 40);
 
         TextView title = new TextView(this);
-        title.setText("LiamTV");
+        title.setText("Liam TV");
         title.setTextSize(36);
         title.setTextColor(0xFFff6b35);
         title.setGravity(android.view.Gravity.CENTER);
