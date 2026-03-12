@@ -264,14 +264,16 @@ function shuffle(arr) { return [...arr].sort(() => Math.random() - .5); }
 
 // ──────────────────────────── YOUTUBE PLAYER ────────────────────────────
 function initPlayer() {
-  if (ytReady) {
-    loadCurrentVideo();
-  }
-  // onYouTubeIframeAPIReady will call loadCurrentVideo when ready
+  if (ytReady) createPlayer();
 }
 
 function onYouTubeIframeAPIReady() {
   ytReady = true;
+  if (playlist.length) createPlayer();
+}
+
+function createPlayer() {
+  if (ytPlayer) { loadCurrentVideo(); return; }
   if (!playlist.length) return;
   ytPlayer = new YT.Player('player', {
     width: '100%',
