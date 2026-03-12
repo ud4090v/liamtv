@@ -8,7 +8,6 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.WebChromeClient;
-import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -23,8 +22,8 @@ public class MainActivity extends Activity {
     private WebView webView;
     private FrameLayout rootLayout;
     private View setupView;
-    private View customViewContainer;
-    private WebChromeClient.CustomViewCallback customViewCallback;
+    private View fullscreenView;
+    private WebChromeClient.CustomViewCallback fullscreenCallback;
     private static final String PREFS = "liamtv_prefs";
     private static final String KEY_SITE_URL = "site_url";
 
@@ -38,8 +37,6 @@ public class MainActivity extends Activity {
         setContentView(rootLayout);
 
         String savedUrl = getPrefs().getString(KEY_SITE_URL, "");
-
-        // Check if URL was set at build time
         String buildUrl = BuildConfig.TV_PLAYER_URL;
         boolean hasBuildUrl = buildUrl != null && !buildUrl.contains("YOURSITE");
 
@@ -58,16 +55,14 @@ public class MainActivity extends Activity {
             WindowManager.LayoutParams.FLAG_FULLSCREEN,
             WindowManager.LayoutParams.FLAG_FULLSCREEN
         );
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            getWindow().getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-            );
-        }
+        getWindow().getDecorView().setSystemUiVisibility(
+            View.SYSTEM_UI_FLAG_FULLSCREEN
+            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+            | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+        );
     }
 
     private void showSetup() {
@@ -78,7 +73,7 @@ public class MainActivity extends Activity {
         layout.setBackgroundColor(0xFF0a0a1a);
 
         TextView title = new TextView(this);
-        title.setText("🚛 LiamTV Setup");
+        title.setText("LiamTV Setup");
         title.setTextSize(32);
         title.setTextColor(0xFFff6b35);
         title.setGravity(android.view.Gravity.CENTER);
@@ -123,7 +118,7 @@ public class MainActivity extends Activity {
         layout.addView(row);
 
         Button btn = new Button(this);
-        btn.setText("▶  Connect & Watch");
+        btn.setText("Connect and Watch");
         btn.setTextSize(20);
         btn.setTextColor(0xFF1a0000);
         btn.setBackgroundColor(0xFFff6b35);
@@ -135,33 +130,23 @@ public class MainActivity extends Activity {
         btnParams.topMargin = 40;
         btnParams.gravity = android.view.Gravity.CENTER;
         btn.setLayoutParams(btnParams);
-        btn.setOnClickListener(v -> {
-            String siteName = input.getText().toString().trim();
-            if (siteName.isEmpty()) return;
-            if (siteName.contains(".")) {
-                // User entered a full domain
-                String url = siteName.startsWith("http") ? siteName : "https://" + siteName;
-                if (!url.contains("/tv-player")) url += "/tv-player.html";
-                saveUrl(url);
-                launchPlayer(url);
-            } else {
-                String url = "https://" + siteName + ".netlify.app/tv-player.html";
+        btn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String siteName = input.getText().toString().trim();
+                if (siteName.isEmpty()) return;
+                String url;
+                if (siteName.contains(".")) {
+                    url = siteName.startsWith("http") ? siteName : "https://" + siteName;
+                    if (!url.contains("/tv-player")) url += "/tv-player.html";
+                } else {
+                    url = "https://" + siteName + ".netlify.app/tv-player.html";
+                }
                 saveUrl(url);
                 launchPlayer(url);
             }
         });
         layout.addView(btn);
-
-        // Handle Enter key on the input to submit
-        input.setOnKeyListener((v, keyCode, event) -> {
-            if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
-                if (event.getAction() == KeyEvent.ACTION_UP) {
-                    btn.performClick();
-                }
-                return true;
-            }
-            return false;
-        });
 
         setupView = layout;
         rootLayout.addView(layout, new FrameLayout.LayoutParams(
@@ -189,18 +174,13 @@ public class MainActivity extends Activity {
         ws.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         ws.setUserAgentString(ws.getUserAgentString() + " LiamTV-Android/1.0");
 
-        webView.setWebViewClient(new WebViewClient() {
-            @Override
-            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                return false;
-            }
-        });
+        webView.setWebViewClient(new WebViewClient());
 
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public void onShowCustomView(View view, CustomViewCallback callback) {
-                customViewCallback = callback;
-                customViewContainer = view;
+                fullscreenCallback = callback;
+                fullscreenView = view;
                 rootLayout.addView(view, new FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT,
                     FrameLayout.LayoutParams.MATCH_PARENT
@@ -210,15 +190,17 @@ public class MainActivity extends Activity {
 
             @Override
             public void onHideCustomView() {
-                if (customViewContainer != null) {
-                    rootLayout.removeView(customViewContainer);
-                    customViewContainer = null;
+                if (fullscreenView != null) {
+                    rootLayout.removeView(fullscreenView);
+                    fullscreenView = null;
                 }
-                if (customViewCallback != null) {
-                    customViewCallback.onCustomViewHidden();
-                    customViewCallback = null;
+                if (fullscreenCallback != null) {
+                    fullscreenCallback.onCustomViewHidden();
+                    fullscreenCallback = null;
                 }
-                webView.setVisibility(View.VISIBLE);
+                if (webView != null) {
+                    webView.setVisibility(View.VISIBLE);
+                }
             }
         });
 
@@ -233,23 +215,14 @@ public class MainActivity extends Activity {
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (webView != null) {
-            // Pass d-pad and remote keys to the WebView
             switch (keyCode) {
                 case KeyEvent.KEYCODE_DPAD_LEFT:
-                    webView.dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_LEFT));
-                    return true;
                 case KeyEvent.KEYCODE_DPAD_RIGHT:
-                    webView.dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_RIGHT));
-                    return true;
                 case KeyEvent.KEYCODE_DPAD_UP:
-                    webView.dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_UP));
-                    return true;
                 case KeyEvent.KEYCODE_DPAD_DOWN:
-                    webView.dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_DOWN));
-                    return true;
                 case KeyEvent.KEYCODE_DPAD_CENTER:
                 case KeyEvent.KEYCODE_ENTER:
-                    webView.dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER));
+                    webView.dispatchKeyEvent(event);
                     return true;
             }
         }
@@ -258,8 +231,16 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (customViewContainer != null) {
-            webView.getWebChromeClient().onHideCustomView();
+        if (fullscreenView != null) {
+            if (fullscreenCallback != null) {
+                fullscreenCallback.onCustomViewHidden();
+            }
+            if (fullscreenView != null) {
+                rootLayout.removeView(fullscreenView);
+                fullscreenView = null;
+            }
+            fullscreenCallback = null;
+            if (webView != null) webView.setVisibility(View.VISIBLE);
         } else if (webView != null && webView.canGoBack()) {
             webView.goBack();
         } else {
