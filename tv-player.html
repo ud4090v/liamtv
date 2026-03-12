@@ -523,7 +523,7 @@ function startTimer(minutes) {
     updateTimerPill();
 
     // Fade start: last 5 min (300s) or last 30% of time
-    const fadeStart = Math.min(300, settings.sleepTimer * 60 * 0.3);
+    const fadeStart = Math.max(300, settings.sleepTimer * 60 * 0.5);
     if (timerSeconds <= fadeStart && timerSeconds > 0) {
       currentDim = 1 - (timerSeconds / fadeStart);
       currentDim = Math.min(0.95, currentDim);
