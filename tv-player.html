@@ -593,13 +593,19 @@ function updateMenuFocus() {
 function activateMenu() {
   const items = menuItems();
   const action = items[menuFocusIdx]?.dataset?.action;
+  // Manage playlist: close menu overlay but keep video paused
+  if (action === 'manage') {
+    menuOpen = false;
+    document.getElementById('menu').classList.remove('open');
+    openPlaylistMgr();
+    return;
+  }
   closeMenu();
   if (action === 'next') nextVideo();
   else if (action === 'prev') prevVideo();
   else if (action === 'timer') openTimerMenu();
   else if (action === 'cancelTimer') cancelTimer();
   else if (action === 'close') {}
-  else if (action === 'manage') openPlaylistMgr();
   else if (action === 'reload') { loadPlaylistFromServer(); }
 }
 
@@ -615,6 +621,7 @@ function openPlaylistMgr() {
   pmOpen = true;
   pmFocus = 'list';
   pmListIdx = currentIdx;
+  if (ytPlayer) { try { ytPlayer.pauseVideo(); } catch(e){} }
   document.getElementById('playlistMgr').classList.add('open');
   renderPmList();
   document.getElementById('pmStatus').textContent = `${playlist.length} videos`;
