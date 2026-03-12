@@ -384,7 +384,12 @@ async function loadHomeScreen() {
       el.innerHTML = '<div class="home-loading">No playlists yet — create one!</div>';
       return;
     }
-    el.innerHTML = data.playlists.map(p => `
+    const visible = data.playlists.filter(p => !p.name.startsWith('_'));
+    if (visible.length === 0) {
+      el.innerHTML = '<div class="home-loading">No playlists yet — create one!</div>';
+      return;
+    }
+    el.innerHTML = visible.map(p => `
       <button class="home-pl-btn" onclick="playPlaylist('${p.name}')">
         <span class="pl-icon">▶</span>
         <span class="pl-info">
@@ -520,21 +525,51 @@ let liamTVPlayed = new Set();
 let liamTVTaste = [];
 let liamTVLoading = false;
 
+async function saveLiamTVHistory(video) {
+  try {
+    const r = await fetch('/api/playlist?name=_liamtv-history');
+    const data = await r.json();
+    const history = data.videos || [];
+    // Avoid duplicates
+    if (!history.find(v => v.id === video.id)) {
+      history.push(video);
+      // Keep last 200 to avoid blob getting huge
+      const trimmed = history.slice(-200);
+      await fetch('/api/playlist?name=_liamtv-history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videos: trimmed, settings: { channelName: 'Liam TV History', playOrder: 'sequence', sleepTimer: 0 } })
+      });
+    }
+  } catch(e) { console.warn('Failed to save LiamTV history:', e); }
+}
+
 async function startLiamTV() {
   document.getElementById('homeLiamBtn').querySelector('.ltv-desc').textContent = 'Loading your taste profile...';
   
-  // Gather taste profile from all playlists
+  // Gather taste profile from all playlists + Liam TV history
   try {
     const r = await fetch('/api/playlists');
     const data = await r.json();
     const allVideos = [];
     for (const p of (data.playlists || [])) {
+      // Skip the internal history playlist from the taste list — we load it separately
+      if (p.name === '_liamtv-history') continue;
       const pr = await fetch(`/api/playlist?name=${encodeURIComponent(p.name)}`);
       const pd = await pr.json();
       for (const v of (pd.videos || [])) {
         allVideos.push({ title: v.title, channel: v.channel });
       }
     }
+    
+    // Also load Liam TV history for richer taste profile
+    try {
+      const hr = await fetch('/api/playlist?name=_liamtv-history');
+      const hd = await hr.json();
+      for (const v of (hd.videos || [])) {
+        allVideos.push({ title: v.title, channel: v.channel });
+      }
+    } catch(e) {}
     
     if (allVideos.length === 0) {
       document.getElementById('homeLiamBtn').querySelector('.ltv-desc').textContent = 'Add some playlists first!';
@@ -614,6 +649,9 @@ async function liamTVNext() {
     liamTVPlayed.add(picked.id);
     playlist = [picked];
     currentIdx = 0;
+    
+    // Save to persistent Liam TV history playlist
+    saveLiamTVHistory(picked);
     
     if (ytPlayer) {
       ytPlayer.loadVideoById(picked.id);
