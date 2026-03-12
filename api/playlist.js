@@ -1,6 +1,6 @@
-import { put, list, del } from '@vercel/blob';
+import { put, head } from '@vercel/blob';
 
-const PLAYLIST_KEY = 'playlist.json';
+const PLAYLIST_PATH = 'playlist.json';
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -9,17 +9,24 @@ export default async function handler(req, res) {
 
   if (req.method === "OPTIONS") return res.status(204).end();
 
+  const defaultPlaylist = { videos: [], settings: { channelName: 'Monster Truck TV 🚛', playOrder: 'sequence', sleepTimer: 30 } };
+
   if (req.method === "GET") {
     try {
-      const { blobs } = await list({ prefix: PLAYLIST_KEY });
-      if (blobs.length === 0) {
-        return res.status(200).json({ videos: [], settings: { channelName: 'Monster Truck TV 🚛', playOrder: 'sequence', sleepTimer: 30 } });
+      // Try to get the blob metadata first
+      const meta = await head(PLAYLIST_PATH).catch(() => null);
+      if (!meta) {
+        return res.status(200).json(defaultPlaylist);
       }
-      const response = await fetch(blobs[0].url);
+      // Fetch the actual content with cache-bust
+      const response = await fetch(meta.url + '?t=' + Date.now());
+      if (!response.ok) {
+        return res.status(200).json(defaultPlaylist);
+      }
       const data = await response.json();
       return res.status(200).json(data);
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(200).json(defaultPlaylist);
     }
   }
 
@@ -30,14 +37,8 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: "Invalid playlist format. Expected { videos: [...], settings: {...} }" });
       }
 
-      // Delete old blob if exists
-      const { blobs } = await list({ prefix: PLAYLIST_KEY });
-      for (const blob of blobs) {
-        await del(blob.url);
-      }
-
-      // Write new
-      const blob = await put(PLAYLIST_KEY, JSON.stringify(data), {
+      // Put overwrites when addRandomSuffix is false
+      const blob = await put(PLAYLIST_PATH, JSON.stringify(data), {
         contentType: 'application/json',
         access: 'public',
         addRandomSuffix: false,
