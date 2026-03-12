@@ -265,28 +265,56 @@ select option{background:#1c1c2e}
 
 <script>
 // ── STATE ──
-let playlist = JSON.parse(localStorage.getItem('mtv_playlist') || '[]');
-let settings = JSON.parse(localStorage.getItem('mtv_settings') || JSON.stringify({
+let playlist = [];
+let settings = {
   channelName: 'Monster Truck TV 🚛',
   playOrder: 'sequence',
   sleepTimer: 30
-}));
+};
 let selectedSearchResults = new Set();
 let searchResultCache = [];
 let activeTab = 'manual';
+let syncing = false;
 
 // ── INIT ──
-window.addEventListener('load', () => {
+window.addEventListener('load', async () => {
   renderPlaylist();
   loadKeys();
   applySettings();
-  document.querySelector(`[data-min="${settings.sleepTimer}"]`)?.classList.add('active');
-  document.querySelector(`[data-min="${settings.sleepTimer}"]`)?.classList.remove('active');
+  await loadFromServer();
   setTimer(settings.sleepTimer, true);
 });
 
 function loadKeys() { /* keys stored server-side as env vars */ }
 function saveKeys() { /* keys stored server-side as env vars */ }
+
+async function loadFromServer() {
+  try {
+    const r = await fetch('/api/playlist');
+    const data = await r.json();
+    if (data.videos && data.videos.length > 0) {
+      playlist = data.videos;
+      if (data.settings) Object.assign(settings, data.settings);
+      applySettings();
+      renderPlaylist();
+      setTimer(settings.sleepTimer, true);
+      showToast(`Loaded ${playlist.length} videos from server`, 'success');
+    }
+  } catch(e) { console.warn('Failed to load from server:', e); }
+}
+
+async function syncToServer() {
+  if (syncing) return;
+  syncing = true;
+  try {
+    await fetch('/api/playlist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ videos: playlist, settings })
+    });
+  } catch(e) { console.warn('Failed to sync to server:', e); }
+  syncing = false;
+}
 
 function applySettings() {
   document.getElementById('channelName').value = settings.channelName;
@@ -297,6 +325,7 @@ function saveSettings() {
   settings.channelName = document.getElementById('channelName').value;
   settings.playOrder = document.getElementById('playOrder').value;
   localStorage.setItem('mtv_settings', JSON.stringify(settings));
+  syncToServer();
 }
 
 // ── TABS ──
@@ -317,6 +346,7 @@ function setTimer(min, silent) {
     p.classList.toggle('active', parseInt(p.dataset.min) === min);
   });
   localStorage.setItem('mtv_settings', JSON.stringify(settings));
+  syncToServer();
   if (!silent) showToast(min === 0 ? 'Sleep timer off' : `Sleep timer: ${min} min`, 'success');
 }
 
@@ -408,6 +438,7 @@ function removeVideo(i) {
 
 function savePlaylist() {
   localStorage.setItem('mtv_playlist', JSON.stringify(playlist));
+  syncToServer();
 }
 
 // ── AI SEARCH ──
