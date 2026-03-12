@@ -363,6 +363,7 @@ async function addUrl() {
 async function fetchVideoMeta(id) {
   try {
     const r = await fetch(`/.netlify/functions/youtube?endpoint=videos&part=snippet&id=${id}`);
+    if (!r.ok) throw new Error(`YouTube API error ${r.status}`);
     const d = await r.json();
     if (d.items && d.items[0]) {
       const s = d.items[0].snippet;
@@ -439,7 +440,12 @@ async function aiSearch() {
         messages: [{ role: 'user', content: `Generate YouTube search queries for: "${prompt}". Focus on content appropriate for a 3-year-old. Include terms like "for kids", "toddler", "children" where appropriate. Return JSON array only.` }]
       })
     });
+    if (!claudeResp.ok) {
+      const err = await claudeResp.json().catch(() => ({}));
+      throw new Error(err.error || `Claude API returned ${claudeResp.status}`);
+    }
     const claudeData = await claudeResp.json();
+    if (!claudeData.content || !claudeData.content[0]) throw new Error('Unexpected response from Claude API');
     let queries = JSON.parse(claudeData.content[0].text.replace(/```json|```/g, '').trim());
 
     document.getElementById('aiStatus').innerHTML = `<div class="loading-row"><div class="spinner"></div> Searching YouTube for ${queries.length} queries...</div>`;
@@ -452,6 +458,7 @@ async function aiSearch() {
     for (const q of queries) {
       try {
         const ytResp = await fetch(`/.netlify/functions/youtube?endpoint=search&part=snippet&q=${encodeURIComponent(q)}&type=video&safeSearch=strict&videoEmbeddable=true&maxResults=${maxPerQuery}`);
+        if (!ytResp.ok) continue;
         const ytData = await ytResp.json();
         if (ytData.items) {
           for (const item of ytData.items) {
