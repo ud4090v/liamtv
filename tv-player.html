@@ -86,9 +86,9 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
 /* ── PAUSE OVERLAY ── */
 #pauseOverlay{position:fixed;inset:0;z-index:12;background:rgba(0,0,0,.55);display:none;animation:poFadeIn .2s ease}
 @keyframes poFadeIn{from{opacity:0}to{opacity:1}}
-.po-top{position:absolute;top:24px;left:50%;transform:translateX(-50%);display:flex;gap:12px}
-.po-btn{width:52px;height:52px;border-radius:50%;border:2px solid rgba(255,255,255,.2);background:rgba(0,0,0,.6);color:white;font-size:22px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px)}
-.po-btn:hover,.po-btn:focus{border-color:rgba(255,255,255,.5);background:rgba(255,255,255,.15);transform:scale(1.1)}
+.po-top{position:absolute;top:28px;left:50%;transform:translateX(-50%);display:flex;gap:12px}
+.po-pill{font-family:'Fredoka One',cursive;font-size:16px;border-radius:50px;border:2px solid rgba(255,255,255,.2);background:rgba(0,0,0,.6);color:white;padding:12px 28px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:10px;backdrop-filter:blur(12px);white-space:nowrap;letter-spacing:.5px}
+.po-pill:hover,.po-pill:focus{border-color:rgba(255,255,255,.5);background:rgba(255,255,255,.12);transform:scale(1.04)}
 .po-nav{position:absolute;top:50%;transform:translateY(-50%);width:72px;height:120px;border-radius:16px;border:2px solid rgba(255,255,255,.15);background:rgba(0,0,0,.5);color:white;font-size:32px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px)}
 .po-nav:hover,.po-nav:focus{border-color:rgba(255,255,255,.4);background:rgba(255,255,255,.1);transform:translateY(-50%) scale(1.05)}
 .po-prev{left:24px}
@@ -101,7 +101,7 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
   .po-prev{left:8px}
   .po-next{right:8px}
   .po-play{width:64px;height:64px;font-size:28px}
-  .po-btn{width:44px;height:44px;font-size:18px}
+  .po-pill{font-size:14px;padding:10px 20px}
 }
 
 /* ── PLAYLIST MANAGER ── */
@@ -239,9 +239,7 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
 <!-- Pause Overlay -->
 <div id="pauseOverlay" style="display:none">
   <div class="po-top">
-    <button class="po-btn" onclick="poAction('manage')" title="Manage Playlist">📋</button>
-    <button class="po-btn" onclick="poAction('timer')" id="poTimerBtn" title="Sleep Timer">🌙</button>
-    <button class="po-btn" onclick="poAction('reload')" title="Reload Playlist">🔄</button>
+    <button class="po-pill" onclick="poAction('manage')">📋 Manage Playlist</button>
   </div>
   <button class="po-nav po-prev" onclick="poAction('prev')" title="Previous">❮</button>
   <button class="po-play" onclick="poAction('play')" id="poPlayBtn" title="Play">▶</button>
@@ -882,15 +880,12 @@ function resumePlay() {
 }
 
 function updatePoTimerBtn() {
-  const btn = document.getElementById('poTimerBtn');
   const bottom = document.getElementById('poBottom');
   if (timerSeconds > 0) {
-    btn.title = 'Cancel Timer';
     const m = Math.floor(timerSeconds / 60);
-    bottom.innerHTML = `<button class="po-btn" onclick="poAction('cancelTimer')" style="width:auto;border-radius:26px;padding:0 16px;font-size:14px;gap:6px">❌ Cancel Timer (${m}m)</button>`;
+    bottom.innerHTML = `<button class="po-pill" onclick="poAction('cancelTimer')">❌ Cancel Timer (${m}m)</button>`;
   } else {
-    btn.title = 'Sleep Timer';
-    bottom.innerHTML = '';
+    bottom.innerHTML = `<button class="po-pill" onclick="poAction('timer')">🌙 Sleep Timer</button>`;
   }
 }
 
