@@ -241,23 +241,7 @@ async function parsePlaylistFromUrl() {
       return;
     } catch(e) { console.warn('Playlist parse error:', e); }
   }
-  // No hash — try fetching from server (for native TV app)
-  try {
-    const resp = await fetch('/.netlify/functions/playlist-store');
-    if (resp.ok) {
-      const data = await resp.json();
-      if (data.playlist && data.playlist.length) {
-        playlist = data.playlist;
-        if (data.settings) Object.assign(settings, data.settings);
-        if (settings.playOrder === 'shuffle') playlist = shuffle(playlist);
-        document.getElementById('setupScreen').style.display = 'none';
-        applySettings();
-        initPlayer();
-        return;
-      }
-    }
-  } catch(e) { console.warn('Server playlist fetch failed:', e); }
-  // No playlist — show setup screen
+  // No playlist in URL — show setup screen
 }
 
 function loadDemo() {

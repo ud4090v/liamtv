@@ -66,90 +66,73 @@ public class MainActivity extends Activity {
     }
 
     private void showSetup() {
+        android.widget.ScrollView scroll = new android.widget.ScrollView(this);
+        scroll.setBackgroundColor(0xFF0a0a1a);
+        scroll.setFillViewport(true);
+
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setGravity(android.view.Gravity.CENTER);
-        layout.setPadding(80, 40, 80, 40);
-        layout.setBackgroundColor(0xFF0a0a1a);
+        layout.setPadding(60, 40, 60, 40);
 
         TextView title = new TextView(this);
-        title.setText("LiamTV Setup");
-        title.setTextSize(32);
+        title.setText("LiamTV");
+        title.setTextSize(36);
         title.setTextColor(0xFFff6b35);
         title.setGravity(android.view.Gravity.CENTER);
-        title.setPadding(0, 0, 0, 20);
+        title.setPadding(0, 0, 0, 12);
         layout.addView(title);
 
         TextView desc = new TextView(this);
-        desc.setText("Enter your Netlify site name to connect to your playlist.\nExample: my-cool-site");
-        desc.setTextSize(16);
+        desc.setText("Paste your TV link from the Playlist Manager.\nOpen Playlist Manager \u2192 Export tab \u2192 Generate TV Link \u2192 Copy Link");
+        desc.setTextSize(14);
         desc.setTextColor(0x99FFFFFF);
         desc.setGravity(android.view.Gravity.CENTER);
-        desc.setPadding(0, 0, 0, 40);
+        desc.setPadding(0, 0, 0, 24);
         layout.addView(desc);
 
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(android.view.Gravity.CENTER);
-
-        TextView prefix = new TextView(this);
-        prefix.setText("https://");
-        prefix.setTextSize(18);
-        prefix.setTextColor(0x66FFFFFF);
-        row.addView(prefix);
-
         final EditText input = new EditText(this);
-        input.setHint("your-site-name");
-        input.setTextSize(18);
+        input.setHint("Paste TV link here...");
+        input.setTextSize(14);
         input.setTextColor(0xFFFFFFFF);
         input.setHintTextColor(0x44FFFFFF);
         input.setBackgroundColor(0x22FFFFFF);
-        input.setPadding(20, 16, 20, 16);
+        input.setPadding(24, 20, 24, 20);
         input.setSingleLine(true);
-        input.setMinimumWidth(400);
-        row.addView(input);
-
-        TextView suffix = new TextView(this);
-        suffix.setText(".netlify.app");
-        suffix.setTextSize(18);
-        suffix.setTextColor(0x66FFFFFF);
-        row.addView(suffix);
-
-        layout.addView(row);
-
-        Button btn = new Button(this);
-        btn.setText("Connect and Watch");
-        btn.setTextSize(20);
-        btn.setTextColor(0xFF1a0000);
-        btn.setBackgroundColor(0xFFff6b35);
-        btn.setPadding(60, 20, 60, 20);
-        LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT,
+        LinearLayout.LayoutParams inputParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        btnParams.topMargin = 40;
-        btnParams.gravity = android.view.Gravity.CENTER;
+        input.setLayoutParams(inputParams);
+        layout.addView(input);
+
+        Button btn = new Button(this);
+        btn.setText("Watch");
+        btn.setTextSize(18);
+        btn.setTextColor(0xFF1a0000);
+        btn.setBackgroundColor(0xFFff6b35);
+        btn.setPadding(60, 16, 60, 16);
+        LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        btnParams.topMargin = 24;
         btn.setLayoutParams(btnParams);
         btn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                String siteName = input.getText().toString().trim();
-                if (siteName.isEmpty()) return;
-                String url;
-                if (siteName.contains(".")) {
-                    url = siteName.startsWith("http") ? siteName : "https://" + siteName;
-                    if (!url.contains("/tv-player")) url += "/tv-player.html";
-                } else {
-                    url = "https://" + siteName + ".netlify.app/tv-player.html";
-                }
+                String pasted = input.getText().toString().trim();
+                if (pasted.isEmpty()) return;
+                String url = pasted.startsWith("http") ? pasted : "https://" + pasted;
                 saveUrl(url);
                 launchPlayer(url);
             }
         });
         layout.addView(btn);
 
-        setupView = layout;
-        rootLayout.addView(layout, new FrameLayout.LayoutParams(
+        scroll.addView(layout);
+        setupView = scroll;
+        rootLayout.addView(scroll, new FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
             FrameLayout.LayoutParams.MATCH_PARENT
         ));
