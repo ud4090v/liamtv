@@ -110,6 +110,18 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
 .home-exit-btn:hover,.home-exit-btn:focus{background:rgba(255,60,60,.2);border-color:rgba(255,60,60,.4)}
 .home-loading{color:rgba(255,255,255,.3);font-size:16px}
 
+/* ── LIAM TV STILL WATCHING ── */
+#liamTVPause{position:fixed;inset:0;z-index:20;background:linear-gradient(160deg,#080816,#0d0d2a,#060610);display:none;align-items:center;justify-content:center}
+.ltv-pause-inner{text-align:center;display:flex;flex-direction:column;align-items:center;gap:16px}
+.ltv-pause-emoji{font-size:64px;animation:ltvBounce 2s infinite}
+@keyframes ltvBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+.ltv-pause-title{font-family:'Fredoka One',cursive;font-size:clamp(28px,6vw,48px);color:white}
+.ltv-pause-btn{font-family:'Fredoka One',cursive;font-size:clamp(20px,4vw,28px);background:linear-gradient(135deg,#ff6b35,#ffd700);color:#1a0000;border:none;border-radius:18px;padding:18px 48px;cursor:pointer;box-shadow:0 6px 0 #8b2000;transition:all .15s;margin-top:12px}
+.ltv-pause-btn:hover,.ltv-pause-btn:focus{transform:translateY(-2px);box-shadow:0 8px 0 #8b2000}
+.ltv-pause-btn:active{transform:translateY(2px);box-shadow:0 3px 0 #8b2000}
+.ltv-pause-home{font-family:'Fredoka One',cursive;font-size:16px;background:none;border:2px solid rgba(255,255,255,.15);border-radius:14px;padding:10px 24px;color:rgba(255,255,255,.4);cursor:pointer;transition:all .15s}
+.ltv-pause-home:hover,.ltv-pause-home:focus{border-color:rgba(255,255,255,.3);color:rgba(255,255,255,.6)}
+
 /* ── PAUSE OVERLAY ── */
 #pauseOverlay{position:fixed;inset:0;z-index:12;background:rgba(0,0,0,.55);display:none;animation:poFadeIn .2s ease}
 @keyframes poFadeIn{from{opacity:0}to{opacity:1}}
@@ -262,6 +274,16 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
     </div>
     <button class="t-confirm" id="tConfirm">Set Timer 🌙</button>
     <button class="t-cancel" id="tCancel">← Back</button>
+  </div>
+</div>
+
+<!-- Liam TV Still Watching? -->
+<div id="liamTVPause" style="display:none">
+  <div class="ltv-pause-inner">
+    <div class="ltv-pause-emoji">🚛</div>
+    <div class="ltv-pause-title">Still watching?</div>
+    <button class="ltv-pause-btn" onclick="resumeLiamTV()">▶ Keep Watching</button>
+    <button class="ltv-pause-home" onclick="goHome()">🏠 Home</button>
   </div>
 </div>
 
@@ -486,6 +508,7 @@ function goHome() {
   currentIdx = 0;
   hidePauseOverlay();
   closePlaylistMgr();
+  document.getElementById('liamTVPause').style.display = 'none';
   loadHomeScreen();
 }
 
@@ -526,6 +549,19 @@ let liamTVTaste = [];
 let liamTVLoading = false;
 let liamTVWatchStart = 0;
 let liamTVCurrentPick = null;
+let liamTVAutoCount = 0; // videos auto-advanced without user interaction
+const LIAMTV_AUTO_LIMIT = 5;
+
+function showLiamTVPause() {
+  if (ytPlayer) { try { ytPlayer.pauseVideo(); } catch(e){} }
+  document.getElementById('liamTVPause').style.display = 'flex';
+}
+
+function resumeLiamTV() {
+  document.getElementById('liamTVPause').style.display = 'none';
+  liamTVAutoCount = 0;
+  liamTVNext();
+}
 
 async function saveLiamTVHistory(video) {
   try {
@@ -720,6 +756,14 @@ function onPlayerStateChange(e) {
     if (liamTVMode && liamTVCurrentPick) {
       saveLiamTVHistory(liamTVCurrentPick);
     }
+    // In Liam TV mode: auto-advance up to limit, then pause and wait
+    if (liamTVMode) {
+      liamTVAutoCount++;
+      if (liamTVAutoCount >= LIAMTV_AUTO_LIMIT) {
+        showLiamTVPause();
+        return;
+      }
+    }
     nextVideo();
   } else if (e.data === YT.PlayerState.PLAYING) {
     updateHUD();
@@ -756,6 +800,8 @@ function trackProgress() {
 
 function nextVideo() {
   if (liamTVMode) {
+    // User pressed next — reset auto-advance counter
+    liamTVAutoCount = 0;
     // Save to history only if watched 10+ seconds
     if (liamTVCurrentPick && (Date.now() - liamTVWatchStart) >= 10000) {
       saveLiamTVHistory(liamTVCurrentPick);
