@@ -172,7 +172,10 @@ public class MainActivity extends Activity {
         ws.setDatabaseEnabled(true);
         ws.setCacheMode(WebSettings.LOAD_DEFAULT);
         ws.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        ws.setUseWideViewPort(true);
+        ws.setLoadWithOverviewMode(true);
         ws.setUserAgentString(ws.getUserAgentString() + " LiamTV-Android/1.0");
+        webView.setInitialScale(0);
 
         webView.setWebViewClient(new WebViewClient());
 
