@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#000"/>
-<title>LiamTV</title>
+<title>Liam TV</title>
 <link rel="manifest" href="/manifest.json"/>
 <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png"/>
 <link rel="apple-touch-icon" href="/icon-192.png"/>
@@ -83,12 +83,32 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
 .t-cancel{font-family:'Fredoka One',cursive;font-size:clamp(14px,2vw,20px);background:transparent;color:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:8px 28px;cursor:pointer;margin-top:14px;display:block;width:100%;transition:color .2s}
 .t-cancel.focused{color:rgba(255,255,255,.7)}
 
+/* ── HOME SCREEN ── */
+#homeScreen{position:fixed;inset:0;z-index:30;background:linear-gradient(160deg,#080816,#0d0d2a,#060610);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;overflow-y:auto;padding:40px 20px}
+.home-title{font-family:'Fredoka One',cursive;font-size:clamp(36px,8vw,72px);background:linear-gradient(135deg,#ff6b35,#ffd700);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px;text-align:center}
+.home-sub{font-family:'Fredoka One',cursive;font-size:clamp(14px,2.5vw,20px);color:rgba(255,255,255,.25);margin-bottom:24px;text-align:center}
+.home-playlists{display:flex;flex-direction:column;gap:12px;width:100%;max-width:500px}
+.home-pl-btn{font-family:'Fredoka One',cursive;font-size:clamp(18px,3.5vw,28px);background:linear-gradient(135deg,#ff6b35,#ffd700);color:#1a0000;border:none;border-radius:18px;padding:18px 32px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:all .15s;box-shadow:0 6px 0 #8b2000;width:100%;text-align:left}
+.home-pl-btn:hover,.home-pl-btn:focus{transform:translateY(-2px);box-shadow:0 8px 0 #8b2000}
+.home-pl-btn:active{transform:translateY(2px);box-shadow:0 3px 0 #8b2000}
+.home-pl-btn .pl-icon{font-size:clamp(24px,4vw,36px);flex-shrink:0}
+.home-pl-btn .pl-info{flex:1;min-width:0}
+.home-pl-btn .pl-name{display:block}
+.home-pl-btn .pl-count{font-size:clamp(11px,1.8vw,14px);opacity:.6;font-weight:400}
+.home-new-btn{font-family:'Fredoka One',cursive;font-size:clamp(16px,2.5vw,22px);background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.15);border-radius:16px;padding:14px 28px;color:rgba(255,255,255,.4);cursor:pointer;transition:all .15s;width:100%;max-width:500px}
+.home-new-btn:hover,.home-new-btn:focus{border-color:rgba(255,255,255,.3);color:rgba(255,255,255,.6);background:rgba(255,255,255,.08)}
+.home-exit-btn{font-family:'Fredoka One',cursive;font-size:clamp(14px,2vw,18px);background:rgba(255,60,60,.12);border:2px solid rgba(255,60,60,.25);border-radius:14px;padding:12px 32px;color:#ff6b6b;cursor:pointer;transition:all .15s;margin-top:16px}
+.home-exit-btn:hover,.home-exit-btn:focus{background:rgba(255,60,60,.2);border-color:rgba(255,60,60,.4)}
+.home-loading{color:rgba(255,255,255,.3);font-size:16px}
+
 /* ── PAUSE OVERLAY ── */
 #pauseOverlay{position:fixed;inset:0;z-index:12;background:rgba(0,0,0,.55);display:none;animation:poFadeIn .2s ease}
 @keyframes poFadeIn{from{opacity:0}to{opacity:1}}
 .po-top{position:absolute;top:28px;left:50%;transform:translateX(-50%);display:flex;gap:12px}
 .po-pill{font-family:'Fredoka One',cursive;font-size:16px;border-radius:50px;border:2px solid rgba(255,255,255,.2);background:rgba(0,0,0,.6);color:white;padding:12px 28px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:10px;backdrop-filter:blur(12px);white-space:nowrap;letter-spacing:.5px}
 .po-pill:hover,.po-pill:focus{border-color:rgba(255,255,255,.5);background:rgba(255,255,255,.12);transform:scale(1.04)}
+.po-exit{border-color:rgba(255,60,60,.3);color:#ff6b6b;background:rgba(255,60,60,.1);font-size:14px;padding:10px 22px}
+.po-exit:hover,.po-exit:focus{border-color:rgba(255,60,60,.5);background:rgba(255,60,60,.2)}
 .po-nav{position:absolute;top:50%;transform:translateY(-50%);width:72px;height:120px;border-radius:16px;border:2px solid rgba(255,255,255,.15);background:rgba(0,0,0,.5);color:white;font-size:32px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px)}
 .po-nav:hover,.po-nav:focus{border-color:rgba(255,255,255,.4);background:rgba(255,255,255,.1);transform:translateY(-50%) scale(1.05)}
 .po-prev{left:24px}
@@ -245,6 +265,9 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
   <button class="po-play" onclick="poAction('play')" id="poPlayBtn" title="Play">▶</button>
   <button class="po-nav po-next" onclick="poAction('next')" title="Next">❯</button>
   <div class="po-bottom" id="poBottom"></div>
+  <div class="po-bottom" style="bottom:80px" id="poBottomHome">
+    <button class="po-pill po-exit" onclick="poAction('home')">🏠 Home</button>
+  </div>
 </div>
 
 <!-- Playlist Manager -->
@@ -281,18 +304,15 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
   </div>
 </div>
 
-<!-- Setup Screen -->
-<div id="setupScreen">
-  <div class="setup-inner">
-    <span class="setup-truck">🚛</span>
-    <div class="setup-title">Liam TV</div>
-    <div class="setup-steps">
-      <strong>No playlist found!</strong><br/><br/>
-      Tap below to search and add videos, or open<br/>
-      <strong>liamtv.vercel.app/playlist-manager.html</strong> on your phone.
-    </div>
-    <button class="start-btn" onclick="document.getElementById('setupScreen').style.display='none';openPlaylistMgr()">🔍 Build Your Playlist</button>
+<!-- Home Screen -->
+<div id="homeScreen">
+  <div class="home-title">🚛 Liam TV</div>
+  <div class="home-sub">Pick a playlist to watch!</div>
+  <div class="home-playlists" id="homePlaylists">
+    <div class="home-loading">Loading playlists...</div>
   </div>
+  <button class="home-new-btn" onclick="createNewPlaylist()">+ New Playlist</button>
+  <button class="home-exit-btn" onclick="exitApp()">✕ Exit</button>
 </div>
 
 <!-- YouTube IFrame API -->
@@ -320,9 +340,11 @@ const TIMER_MINS = [10, 20, 30, 45, 60, 90];
 const DEMO_PLAYLIST = [];
 
 // ──────────────────────────── INIT ────────────────────────────
+let currentPlaylistName = null;
+
 window.addEventListener('load', () => {
   buildGnStars();
-  parsePlaylistFromUrl();
+  loadHomeScreen();
 });
 
 function buildGnStars() {
@@ -336,46 +358,88 @@ function buildGnStars() {
   }
 }
 
-async function parsePlaylistFromUrl() {
-  // Priority 1: URL hash (legacy TV links still work)
-  const hash = window.location.hash;
-  const match = hash.match(/[#&]pl=([^&]+)/);
-  if (match) {
-    try {
-      const data = JSON.parse(decodeURIComponent(escape(atob(match[1]))));
-      playlist = data.v.map(v => ({ id: v.id, title: v.t, channel: v.c, thumb: v.th }));
-      if (data.s) { Object.assign(settings, data.s); }
-      if (settings.playOrder === 'shuffle') playlist = shuffle(playlist);
-      document.getElementById('setupScreen').style.display = 'none';
-      applySettings();
-      initPlayer();
-      return;
-    } catch(e) { console.warn('Playlist parse error:', e); }
-  }
-
-  // Priority 2: Load from server
+async function loadHomeScreen() {
+  document.getElementById('homeScreen').style.display = 'flex';
   try {
-    const r = await fetch('/api/playlist');
+    const r = await fetch('/api/playlists');
+    const data = await r.json();
+    const el = document.getElementById('homePlaylists');
+    if (!data.playlists || data.playlists.length === 0) {
+      el.innerHTML = '<div class="home-loading">No playlists yet — create one!</div>';
+      return;
+    }
+    el.innerHTML = data.playlists.map(p => `
+      <button class="home-pl-btn" onclick="playPlaylist('${p.name}')">
+        <span class="pl-icon">▶</span>
+        <span class="pl-info">
+          <span class="pl-name">${homeEsc(p.title)}</span>
+          <span class="pl-count">${p.videoCount} video${p.videoCount !== 1 ? 's' : ''}</span>
+        </span>
+      </button>
+    `).join('');
+  } catch(e) {
+    document.getElementById('homePlaylists').innerHTML = '<div class="home-loading">Failed to load playlists</div>';
+  }
+}
+
+function homeEsc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;').replace(/"/g,'&quot;'); }
+
+async function playPlaylist(name) {
+  currentPlaylistName = name;
+  try {
+    const r = await fetch(`/api/playlist?name=${encodeURIComponent(name)}`);
     const data = await r.json();
     if (data.videos && data.videos.length > 0) {
       playlist = data.videos;
       if (data.settings) Object.assign(settings, data.settings);
       if (settings.playOrder === 'shuffle') playlist = shuffle(playlist);
-      document.getElementById('setupScreen').style.display = 'none';
+      currentIdx = 0;
+      document.getElementById('homeScreen').style.display = 'none';
       applySettings();
       initPlayer();
-      return;
+    } else {
+      // Empty playlist — open manager to add videos
+      document.getElementById('homeScreen').style.display = 'none';
+      openPlaylistMgr();
     }
-  } catch(e) { console.warn('Server playlist load failed:', e); }
-
-  // No playlist found — show setup screen
+  } catch(e) { console.warn('Failed to load playlist:', e); }
 }
 
-function loadDemo() {
-  playlist = [...DEMO_PLAYLIST];
-  document.getElementById('setupScreen').style.display = 'none';
-  applySettings();
-  initPlayer();
+function createNewPlaylist() {
+  const name = prompt('Playlist name:');
+  if (!name || !name.trim()) return;
+  const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  currentPlaylistName = slug;
+  playlist = [];
+  settings.channelName = name.trim();
+  // Save empty playlist to server
+  fetch(`/api/playlist?name=${encodeURIComponent(slug)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ videos: [], settings })
+  }).then(() => {
+    document.getElementById('homeScreen').style.display = 'none';
+    openPlaylistMgr();
+  });
+}
+
+function goHome() {
+  // Stop playback, reset, show home
+  if (ytPlayer) { try { ytPlayer.stopVideo(); } catch(e){} }
+  cancelTimer();
+  currentPlaylistName = null;
+  playlist = [];
+  currentIdx = 0;
+  hidePauseOverlay();
+  closePlaylistMgr();
+  loadHomeScreen();
+}
+
+function exitApp() {
+  // Try to close the window (works in WebView/standalone), fallback to blank
+  window.close();
+  // If window.close didn't work (browser won't allow), go to blank
+  setTimeout(() => { document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#000;color:rgba(255,255,255,.2);font-family:sans-serif;font-size:20px">Goodbye! 🚛</div>'; }, 200);
 }
 
 function applySettings() {
@@ -717,8 +781,9 @@ function pmRemoveVideo(i) {
 }
 
 async function pmSavePlaylist() {
+  if (!currentPlaylistName) return;
   try {
-    await fetch('/api/playlist', {
+    await fetch(`/api/playlist?name=${encodeURIComponent(currentPlaylistName)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ videos: playlist, settings })
@@ -727,8 +792,9 @@ async function pmSavePlaylist() {
 }
 
 async function loadPlaylistFromServer() {
+  if (!currentPlaylistName) return;
   try {
-    const r = await fetch('/api/playlist');
+    const r = await fetch(`/api/playlist?name=${encodeURIComponent(currentPlaylistName)}`);
     const data = await r.json();
     if (data.videos && data.videos.length > 0) {
       playlist = data.videos;
@@ -844,7 +910,7 @@ function pmAddVideo(i) {
   // Start playing if this is the first video
   if (playlist.length === 1) {
     currentIdx = 0;
-    document.getElementById('setupScreen').style.display = 'none';
+    document.getElementById('homeScreen').style.display = 'none';
     initPlayer();
   }
 }
@@ -897,6 +963,7 @@ function poAction(action) {
   else if (action === 'timer') { hidePauseOverlay(); openTimerMenu(); }
   else if (action === 'reload') { hidePauseOverlay(); loadPlaylistFromServer(); }
   else if (action === 'cancelTimer') { cancelTimer(); updatePoTimerBtn(); }
+  else if (action === 'home') { hidePauseOverlay(); goHome(); }
 }
 
 function pmSetTimer(min) {
