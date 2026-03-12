@@ -1,111 +1,208 @@
-# 🚛 Monster Truck TV — Roku Channel
+# 🚛 Liam TV
 
-A native Roku channel for Liam. Plays YouTube monster truck videos via a stream proxy API running on Saxa.
+A personalized kids' video app with AI-powered discovery. Built for a toddler, runs on Android TV, tablets, and any browser.
+
+**Live:** [liamtv.vercel.app](https://liamtv.vercel.app)
+
+---
+
+## Features
+
+### 🚛 Liam TV Auto-Play (AI Discovery Mode)
+The killer feature. Tap the "Liam TV" button on the home screen and it:
+1. Builds a taste profile from all saved playlists + watch history
+2. Uses Claude AI to generate targeted YouTube search queries
+3. Plays matching kid-safe videos one after another
+4. Learns over time — every video watched 10+ seconds is saved to a persistent history playlist
+5. Auto-advances between videos; pauses with "Still watching?" after 5 auto-plays
+
+### 📋 Multi-Playlist Management
+- Create multiple playlists (Monster Trucks, Lego Cars, etc.)
+- AI auto-generates playlist names from video content
+- YouTube search + AI-powered smart search built into the manager
+- Add/remove/reorder videos
+- Both TV player and phone editor sync to the same server-side storage
+
+### 🌙 Sleep Timer
+- 10/20/30/45/60/90 minute options
+- Screen gradually dims and volume fades over the last 50% (min 5 minutes)
+- Ends with a goodnight screen and spoken "Спокойной ночи!" (Russian lullaby)
+- Any keypress wakes it up
+
+### 📺 TV Remote Compatible
+- D-pad navigation for Android TV
+- Pause overlay with pill-style buttons (manage playlist, prev/next, sleep timer, home)
+- Keyboard shortcuts for all controls
 
 ---
 
 ## Architecture
 
 ```
-Roku TV → Stream API on Saxa (port 3456) → yt-dlp → YouTube direct stream
+┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  Android TV  │────▶│  Vercel (Web)    │────▶│  Vercel Blob    │
+│  / Browser   │     │  tv-player.html  │     │  playlists/*.json│
+│  / Tablet    │     │  API routes      │     └─────────────────┘
+└─────────────┘     │                  │     ┌─────────────────┐
+                     │  /api/playlist   │────▶│  YouTube API    │
+                     │  /api/playlists  │     └─────────────────┘
+                     │  /api/youtube    │     ┌─────────────────┐
+                     │  /api/anthropic  │────▶│  Claude API     │
+                     └──────────────────┘     └─────────────────┘
 ```
 
-- `roku-channel/` — BrightScript channel (zip and sideload to Roku)
-- `stream-api/`   — Express.js proxy server (runs on Saxa)
+### Frontend
+| File | Purpose |
+|------|---------|
+| `tv-player.html` | Main app — home screen, player, playlist manager, all overlays |
+| `playlist-manager.html` | Standalone phone-friendly playlist editor |
+| `sw.js` | Service worker (bypasses `/api/` routes) |
+| `manifest.json` | PWA manifest |
+
+### API Routes (`api/`)
+| Route | Methods | Purpose |
+|-------|---------|---------|
+| `/api/playlist?name=X` | GET, POST, DELETE | CRUD for individual playlists |
+| `/api/playlists` | GET | List all playlists with metadata |
+| `/api/youtube` | GET | Proxied YouTube Data API v3 (safeSearch=strict) |
+| `/api/anthropic` | POST | Proxied Claude API for AI search and playlist naming |
+
+### Storage
+- **Vercel Blob** — each playlist stored as `playlists/{name}.json`
+- `_liamtv-history` — internal playlist tracking Liam TV auto-play history (hidden from UI)
+- Playlists prefixed with `_` are hidden from the home screen
+
+### Android App (`android/`)
+- WebView wrapper loading `https://liamtv.vercel.app/tv-player.html`
+- `LiamTV` JavaScript interface for native exit (`LiamTV.exit()` → `finish()`)
+- APK built automatically via GitHub Actions when `android/**` files change
+- Web changes take effect immediately — no new APK needed
 
 ---
 
-## Step 1: Start the Stream API on Saxa
+## Playlist JSON Format
 
-### Install systemd service (one-time)
+```json
+{
+  "videos": [
+    {
+      "id": "youtube-video-id",
+      "title": "Video Title",
+      "channel": "Channel Name",
+      "thumb": "https://i.ytimg.com/vi/{id}/mqdefault.jpg"
+    }
+  ],
+  "settings": {
+    "channelName": "Monster Trucks 🚛",
+    "playOrder": "sequence",
+    "sleepTimer": 30
+  }
+}
+```
+
+---
+
+## Liam TV Auto-Play Flow
+
+```
+startLiamTV()
+├── Fetch all playlists from /api/playlists
+├── Load each playlist's videos → build taste profile
+├── Load _liamtv-history → add to taste profile
+└── liamTVNext()
+    ├── Sample 8 random videos from taste profile
+    ├── Send to Claude: "generate a YouTube search query for a 3-year-old"
+    ├── YouTube search (safeSearch=strict, maxResults=10)
+    ├── Pick first unwatched video
+    ├── Play it
+    ├── Start 10-second watch timer
+    └── On video end:
+        ├── Save to _liamtv-history (if watched 10+ seconds)
+        ├── Increment auto-advance counter
+        ├── If counter < 5 → liamTVNext()
+        └── If counter >= 5 → "Still watching?" screen
+```
+
+**User pressing Next manually** resets the auto-advance counter (proves they're engaged).
+
+---
+
+## Environment Variables (Vercel)
+
+| Variable | Purpose |
+|----------|---------|
+| `YOUTUBE_API_KEY` | YouTube Data API v3 key |
+| `ANTHROPIC_API_KEY` | Claude API key |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob store access token |
+
+---
+
+## Development
+
+### Local Setup
 ```bash
-cp stream-api/liamtv-stream.service /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable liamtv-stream
-systemctl start liamtv-stream
+git clone https://github.com/ud4090v/liamtv.git
+cd liamtv
+npm install
+vercel dev
 ```
 
-### Verify it's running
+### Deploy
 ```bash
-systemctl status liamtv-stream
-curl http://localhost:3456/health
+vercel --prod
 ```
 
-### Change the API key (recommended)
-Edit `/etc/systemd/system/liamtv-stream.service`, update `LIAMTV_API_KEY=yourkey`.
-Then update `API_KEY` in `roku-channel/components/VideoPlayer.brs` to match.
-Re-zip the channel after any BrightScript changes.
+### Build APK
+APK builds automatically via GitHub Actions on push when `android/**` files change.
+Manual: import `android/` into Android Studio and build.
 
 ---
 
-## Step 2: Enable Developer Mode on your Roku
+## Keyboard / Remote Controls
 
-1. On your Roku remote, press this exact sequence:
-   **Home × 3, Up × 2, Right, Left, Right, Left, Right**
-2. A dialog will appear — enable Developer Mode
-3. Set a password (remember it!)
-4. Note your Roku's IP address shown on screen (e.g. `192.168.1.45`)
+### During Playback
+| Key | Action |
+|-----|--------|
+| Click / Tap / Space | Pause → show overlay |
+| Escape | Open legacy menu |
+| ← / → | Prev / Next video |
 
----
-
-## Step 3: Update the Stream API URL in the channel
-
-Before sideloading, open `roku-channel/components/VideoPlayer.brs` and update line 6:
-
-```brightscript
-' Change this to your Saxa server's IP or domain
-const STREAM_API_URL = "http://96.126.106.225:3456"
-```
-
-If Saxa is on your local network, use the local IP. If Roku is on a different network than Saxa, use Saxa's public IP (96.126.106.225) — make sure port 3456 is open in the firewall.
-
-Then rebuild the zip:
-```bash
-cd roku-channel
-python3 -c "import zipfile,os; z=zipfile.ZipFile('../liamtv-roku.zip','w',zipfile.ZIP_DEFLATED); [z.write(os.path.join(r,f),os.path.join(r,f)) for r,d,files in os.walk('.') for f in files]; z.close()"
-```
-
----
-
-## Step 4: Sideload to Roku
-
-1. Open your browser and go to: `http://[ROKU-IP]` (e.g. `http://192.168.1.45`)
-2. Log in with username `rokudev` and the password you set
-3. Click **"Upload"** and select `liamtv-roku.zip`
-4. Click **"Install"**
-5. The channel launches automatically 🚛
-
----
-
-## Remote Control
-
+### Pause Overlay
 | Button | Action |
 |--------|--------|
-| ▶ Play/Pause | Pause / Resume |
-| → Right arrow | Next video |
-| ← Left arrow | Previous video |
-| ↩ Back | Exit channel |
+| ▶ Play | Resume playback |
+| ❮ / ❯ | Previous / Next video |
+| 📋 Manage Playlist | Open playlist manager |
+| 🌙 Sleep Timer | Set sleep timer |
+| 🏠 Home | Return to home screen |
+
+### Home Screen
+| Button | Action |
+|--------|--------|
+| 🚛 Liam TV | Start AI auto-play discovery |
+| ▶ {Playlist} | Play a saved playlist |
+| + New Playlist | Create and populate a new playlist |
+| ✕ Exit | Close the app |
 
 ---
 
-## Updating the Playlist
+## Legacy Components
 
-Edit the `PLAYLIST` array in `roku-channel/components/VideoPlayer.brs`:
-
-```brightscript
-const PLAYLIST = ["E6ZaFdwpFhk", "HdXYPGmzGlk", "G9eVF2jFHNY", "pM_GB5Sv02c", "_y2yXCWqTzg"]
-```
-
-Replace with any YouTube video IDs. Re-zip and re-sideload.
+The repo contains legacy Roku channel files (`roku-channel/`, `stream-api/`) from an earlier architecture that used yt-dlp on a server to proxy YouTube streams to a BrightScript Roku channel. This approach is deprecated — yt-dlp is blocked by YouTube bot protection on servers.
 
 ---
 
-## Push channel to GitHub
+## Version History
 
-The original repo is `ud4090v/liamtv`. To push updates:
-```bash
-cd /root/.openclaw/workspace/codex-sessions/liamtv-roku
-git add -A && git commit -m "Add Roku channel + stream API"
-git remote add origin https://github.com/ud4090v/liamtv.git  # if not already set
-git push origin main
-```
+| Version | Date | Changes |
+|---------|------|---------|
+| v1.5 | 2026-03-12 | Multi-playlist, AI auto-play, home screen, Exit JS interface |
+| v1.4 | 2026-03-12 | Liam TV rename, server-side playlist, built-in manager, pause overlay |
+| v1.3 | 2026-03-12 | Netlify → Vercel migration |
+| v1.2 | 2026-03-11 | Original Roku + web hybrid |
+
+---
+
+## License
+
+Private family project. Not for distribution.
