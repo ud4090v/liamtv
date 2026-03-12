@@ -357,7 +357,7 @@ async function addUrl() {
 
 async function fetchVideoMeta(id) {
   try {
-    const r = await fetch(`/.netlify/functions/youtube?endpoint=videos&part=snippet&id=${id}`);
+    const r = await fetch(`/api/youtube?endpoint=videos&part=snippet&id=${id}`);
     if (!r.ok) throw new Error(`YouTube API error ${r.status}`);
     const d = await r.json();
     if (d.items && d.items[0]) {
@@ -425,7 +425,7 @@ async function aiSearch() {
 
   try {
     // Step 1: Claude generates smart YouTube search queries
-    const claudeResp = await fetch('/.netlify/functions/anthropic', {
+    const claudeResp = await fetch('/api/anthropic', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -452,7 +452,7 @@ async function aiSearch() {
 
     for (const q of queries) {
       try {
-        const ytResp = await fetch(`/.netlify/functions/youtube?endpoint=search&part=snippet&q=${encodeURIComponent(q)}&type=video&safeSearch=strict&videoEmbeddable=true&maxResults=${maxPerQuery}`);
+        const ytResp = await fetch(`/api/youtube?endpoint=search&part=snippet&q=${encodeURIComponent(q)}&type=video&safeSearch=strict&videoEmbeddable=true&maxResults=${maxPerQuery}`);
         if (!ytResp.ok) continue;
         const ytData = await ytResp.json();
         if (ytData.items) {
