@@ -524,6 +524,8 @@ let liamTVMode = false;
 let liamTVPlayed = new Set();
 let liamTVTaste = [];
 let liamTVLoading = false;
+let liamTVWatchStart = 0;
+let liamTVCurrentPick = null;
 
 async function saveLiamTVHistory(video) {
   try {
@@ -650,8 +652,9 @@ async function liamTVNext() {
     playlist = [picked];
     currentIdx = 0;
     
-    // Save to persistent Liam TV history playlist
-    saveLiamTVHistory(picked);
+    // Start watch timer — only save to history if watched 10+ seconds
+    liamTVWatchStart = Date.now();
+    liamTVCurrentPick = picked;
     
     if (ytPlayer) {
       ytPlayer.loadVideoById(picked.id);
@@ -713,6 +716,10 @@ function onPlayerReady(e) {
 
 function onPlayerStateChange(e) {
   if (e.data === YT.PlayerState.ENDED) {
+    // Video finished naturally — always save to history in Liam TV mode
+    if (liamTVMode && liamTVCurrentPick) {
+      saveLiamTVHistory(liamTVCurrentPick);
+    }
     nextVideo();
   } else if (e.data === YT.PlayerState.PLAYING) {
     updateHUD();
@@ -748,7 +755,14 @@ function trackProgress() {
 }
 
 function nextVideo() {
-  if (liamTVMode) { liamTVNext(); return; }
+  if (liamTVMode) {
+    // Save to history only if watched 10+ seconds
+    if (liamTVCurrentPick && (Date.now() - liamTVWatchStart) >= 10000) {
+      saveLiamTVHistory(liamTVCurrentPick);
+    }
+    liamTVNext();
+    return;
+  }
   if (settings.playOrder === 'repeat1') { ytPlayer?.seekTo(0); ytPlayer?.playVideo(); return; }
   currentIdx = (currentIdx + 1) % playlist.length;
   loadCurrentVideo();
