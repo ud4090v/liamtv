@@ -9,7 +9,7 @@ export default async function handler(req, res) {
 
   if (req.method === "OPTIONS") return res.status(204).end();
 
-  const defaultPlaylist = { videos: [], settings: { channelName: 'Monster Truck TV 🚛', playOrder: 'sequence', sleepTimer: 30 } };
+  const defaultPlaylist = { videos: [], settings: { channelName: 'Liam TV 🚛', playOrder: 'sequence', sleepTimer: 30 } };
 
   if (req.method === "GET") {
     try {

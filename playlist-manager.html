@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="theme-color" content="#0b0b14"/>
-<title>🚛 Playlist Manager</title>
+<title>🚛 Liam TV</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet"/>
 <style>
@@ -138,10 +138,9 @@ select option{background:#1c1c2e}
 <body>
 
 <header>
-  <div class="logo">🚛 KidsTV Manager</div>
+  <div class="logo">🚛 Liam TV</div>
   <div class="header-actions">
-    <button class="btn btn-secondary btn-sm" onclick="showSection('settings')">⚙️ Settings</button>
-    <button class="btn btn-primary btn-sm" onclick="generateTVLink()">📺 Get TV Link</button>
+    <button class="btn btn-secondary btn-sm" onclick="switchTab('settings')">⚙️ Settings</button>
   </div>
 </header>
 
@@ -152,7 +151,7 @@ select option{background:#1c1c2e}
     <div class="tab active" onclick="switchTab('manual')" id="tab-manual">📋 My Playlist</div>
     <div class="tab" onclick="switchTab('ai')" id="tab-ai">🤖 AI Search</div>
     <div class="tab" onclick="switchTab('settings')" id="tab-settings">⚙️ Settings</div>
-    <div class="tab" onclick="switchTab('export')" id="tab-export">📺 TV Link</div>
+
   </div>
 
   <!-- ── MANUAL TAB ── -->
@@ -207,7 +206,7 @@ select option{background:#1c1c2e}
       <div class="settings-grid">
         <div class="field">
           <label>Channel Name</label>
-          <input type="text" id="channelName" value="Monster Truck TV 🚛" oninput="saveSettings()"/>
+          <input type="text" id="channelName" value="Liam TV 🚛" oninput="saveSettings()"/>
         </div>
         <div class="field">
           <label>Playback Order</label>
@@ -232,31 +231,7 @@ select option{background:#1c1c2e}
     </div>
   </div>
 
-  <!-- ── EXPORT TAB ── -->
-  <div id="panel-export" style="display:none">
-    <div class="section">
-      <div class="section-title"><span>📺</span> Watch on TV</div>
-      <p style="color:var(--muted);font-size:14px;margin-bottom:20px;line-height:1.6">
-        Generate a TV link, then copy and paste it into the LiamTV app on your TV or open it in any browser.
-      </p>
-      <button class="btn btn-primary" onclick="generateTVLink()" style="margin-bottom:16px">🔄 Generate TV Link</button>
-      <div id="exportBox" style="display:none">
-        <div class="export-box">
-          <div style="font-weight:700;margin-bottom:8px;font-size:14px">Your TV Player Link:</div>
-          <div class="export-url" id="exportUrl"></div>
-          <div class="export-actions">
-            <button class="btn btn-primary btn-sm" onclick="copyTVLink()">📋 Copy Link</button>
-            <button class="btn btn-secondary btn-sm" onclick="openTVPlayer()">▶ Preview in Browser</button>
-          </div>
-          <div class="divider"></div>
-          <div style="font-size:13px;color:var(--muted);line-height:1.7">
-            <strong style="color:var(--text)">LiamTV Android app:</strong> Copy the link above, open the app, paste it in the setup screen.<br/>
-            <strong style="color:var(--text)">Any browser:</strong> Open the link on your TV, Fire TV Stick, phone, or computer.
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+
 
 </div>
 
@@ -267,7 +242,7 @@ select option{background:#1c1c2e}
 // ── STATE ──
 let playlist = [];
 let settings = {
-  channelName: 'Monster Truck TV 🚛',
+  channelName: 'Liam TV 🚛',
   playOrder: 'sequence',
   sleepTimer: 30
 };
@@ -330,7 +305,7 @@ function saveSettings() {
 
 // ── TABS ──
 function switchTab(tab) {
-  ['manual','ai','settings','export'].forEach(t => {
+  ['manual','ai','settings'].forEach(t => {
     document.getElementById(`panel-${t}`).style.display = 'none';
     document.getElementById(`tab-${t}`).classList.remove('active');
   });
@@ -563,36 +538,7 @@ function addSelectedToPlaylist() {
 }
 
 // ── EXPORT ──
-function generateTVLink() {
-  if (!playlist.length) { showToast('Add some videos first!', 'error'); switchTab('manual'); return; }
-  const data = { v: playlist.map(x => ({ id: x.id, t: x.title, c: x.channel, th: x.thumb })), s: settings };
-  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-  // The TV player URL — same directory, different file
-  const base = window.location.href.replace('playlist-manager.html', 'tv-player.html');
-  const tvUrl = `${base}#pl=${encoded}`;
-  document.getElementById('exportUrl').textContent = tvUrl;
-  document.getElementById('exportBox').style.display = 'block';
-  localStorage.setItem('mtv_last_tv_url', tvUrl);
-  switchTab('export');
-  showToast('TV link generated!', 'success');
-  return tvUrl;
-}
 
-function copyTVLink() {
-  const url = document.getElementById('exportUrl').textContent;
-  navigator.clipboard.writeText(url).then(() => showToast('Copied to clipboard!', 'success'));
-}
-
-function openTVPlayer() {
-  const url = document.getElementById('exportUrl').textContent;
-  const a = document.createElement('a');
-  a.href = url;
-  a.target = '_blank';
-  a.rel = 'noopener';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-}
 
 // ── UTILS ──
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }

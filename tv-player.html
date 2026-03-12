@@ -125,6 +125,10 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
 .pm-tab{flex:1;text-align:center;padding:12px;font-family:'Fredoka One',cursive;font-size:14px;color:rgba(255,255,255,.3);cursor:pointer;transition:all .15s;border-bottom:2px solid transparent}
 .pm-tab.active{color:white;border-bottom-color:#ff6b35}
 .pm-tab.focused{color:rgba(255,255,255,.7);background:rgba(255,255,255,.04)}
+.pm-settings{border-top:1px solid rgba(255,255,255,.08);padding:4px 8px 8px}
+.pm-timer-pills{display:flex;flex-wrap:wrap;gap:4px;padding:4px}
+.pm-timer-pill{font-family:'Fredoka One',cursive;font-size:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:4px 10px;color:rgba(255,255,255,.35);cursor:pointer;transition:all .15s}
+.pm-timer-pill.active{background:rgba(255,107,53,.15);border-color:#ff6b35;color:#ff6b35}
 .pm-status{padding:8px 16px;font-size:12px;color:rgba(255,255,255,.25);text-align:center}
 
 /* ── SETUP SCREEN ── */
@@ -161,7 +165,7 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
 <!-- HUD -->
 <div id="hud">
   <div id="topBar">
-    <div class="channel-name" id="channelNameEl">🚛 Monster Truck TV</div>
+    <div class="channel-name" id="channelNameEl">🚛 Liam TV</div>
     <div class="hud-pills">
       <div class="hud-pill" id="timerPill" style="display:none">⏱ --:--</div>
       <div class="hud-pill" style="font-size:13px">OK = Menu</div>
@@ -217,6 +221,17 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
       <div class="pm-close" id="pmClose" onclick="closePlaylistMgr()">✕ Close</div>
     </div>
     <div class="pm-list" id="pmList"></div>
+    <div class="pm-settings" id="pmSettings">
+      <div style="font-family:'Fredoka One',cursive;font-size:13px;color:rgba(255,255,255,.3);padding:8px 12px 4px">🌙 Sleep Timer</div>
+      <div class="pm-timer-pills" id="pmTimerPills">
+        <span class="pm-timer-pill" data-min="0" onclick="pmSetTimer(0)">Off</span>
+        <span class="pm-timer-pill" data-min="15" onclick="pmSetTimer(15)">15m</span>
+        <span class="pm-timer-pill" data-min="30" onclick="pmSetTimer(30)">30m</span>
+        <span class="pm-timer-pill" data-min="45" onclick="pmSetTimer(45)">45m</span>
+        <span class="pm-timer-pill" data-min="60" onclick="pmSetTimer(60)">1h</span>
+        <span class="pm-timer-pill" data-min="90" onclick="pmSetTimer(90)">90m</span>
+      </div>
+    </div>
     <div class="pm-status" id="pmStatus"></div>
   </div>
   <div class="pm-main">
@@ -246,7 +261,7 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
 <div id="setupScreen">
   <div class="setup-inner">
     <span class="setup-truck">🚛</span>
-    <div class="setup-title">Monster Truck TV</div>
+    <div class="setup-title">Liam TV</div>
     <div class="setup-steps">
       <strong>No playlist found!</strong><br/><br/>
       <strong>Option 1:</strong> Press ▶ below to watch a demo playlist<br/>
@@ -265,7 +280,7 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
 <script>
 // ──────────────────────────── STATE ────────────────────────────
 let playlist = [];
-let settings = { channelName: '🚛 Monster Truck TV', playOrder: 'sequence', sleepTimer: 30 };
+let settings = { channelName: '🚛 Liam TV', playOrder: 'sequence', sleepTimer: 30 };
 let currentIdx = 0;
 let ytPlayer = null;
 let ytReady = false;
@@ -624,6 +639,7 @@ function openPlaylistMgr() {
   if (ytPlayer) { try { ytPlayer.pauseVideo(); } catch(e){} }
   document.getElementById('playlistMgr').classList.add('open');
   renderPmList();
+  pmRenderTimer();
   document.getElementById('pmStatus').textContent = `${playlist.length} videos`;
 }
 
@@ -815,6 +831,24 @@ function pmAddVideo(i) {
     document.getElementById('setupScreen').style.display = 'none';
     initPlayer();
   }
+}
+
+function pmSetTimer(min) {
+  settings.sleepTimer = min;
+  selectedTimerMin = min;
+  document.querySelectorAll('.pm-timer-pill').forEach(p => {
+    p.classList.toggle('active', parseInt(p.dataset.min) === min);
+  });
+  // Apply immediately
+  cancelTimer();
+  if (min > 0) startTimer(min);
+  pmSavePlaylist();
+}
+
+function pmRenderTimer() {
+  document.querySelectorAll('.pm-timer-pill').forEach(p => {
+    p.classList.toggle('active', parseInt(p.dataset.min) === settings.sleepTimer);
+  });
 }
 
 function pmEsc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
