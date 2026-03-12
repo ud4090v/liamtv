@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 320x180 banner for Android TV launcher -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:startColor="#1a1a3e"
+                android:endColor="#2d2d5e"
+                android:angle="135"/>
+            <size android:width="320dp" android:height="180dp"/>
+        </shape>
+    </item>
+    <item android:left="90dp" android:top="40dp" android:right="90dp" android:bottom="40dp">
+        <vector
+            android:width="140dp"
+            android:height="100dp"
+            android:viewportWidth="140"
+            android:viewportHeight="100">
+            <!-- Truck icon -->
+            <path
+                android:fillColor="#ff6b35"
+                android:pathData="M20,30 L20,55 L120,55 L120,38 L95,30 Z"/>
+            <path
+                android:fillColor="#ffd700"
+                android:pathData="M40,55m-10,0a10,10 0,1 1,20 0a10,10 0,1 1,-20 0"/>
+            <path
+                android:fillColor="#ffd700"
+                android:pathData="M100,55m-10,0a10,10 0,1 1,20 0a10,10 0,1 1,-20 0"/>
+            <!-- LIAM text -->
+            <path
+                android:fillColor="#FFFFFF"
+                android:pathData="M25,75 L25,95 L30,95 L30,80 L35,95 L40,80 L40,95 L45,95 L45,75 L40,75 L37.5,87 L35,75 Z"/>
+        </vector>
+    </item>
+</layer-list>

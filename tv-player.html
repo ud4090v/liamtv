@@ -6,7 +6,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#000"/>
-<title>🚛 Monster Truck TV</title>
+<title>LiamTV</title>
+<link rel="manifest" href="/manifest.json"/>
+<link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png"/>
+<link rel="apple-touch-icon" href="/icon-192.png"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;900&display=swap" rel="stylesheet"/>
 <style>
@@ -223,7 +226,7 @@ function buildGnStars() {
   }
 }
 
-function parsePlaylistFromUrl() {
+async function parsePlaylistFromUrl() {
   const hash = window.location.hash;
   const match = hash.match(/[#&]pl=([^&]+)/);
   if (match) {
@@ -238,7 +241,23 @@ function parsePlaylistFromUrl() {
       return;
     } catch(e) { console.warn('Playlist parse error:', e); }
   }
-  // No playlist - show setup screen
+  // No hash — try fetching from server (for native TV app)
+  try {
+    const resp = await fetch('/.netlify/functions/playlist-store');
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.playlist && data.playlist.length) {
+        playlist = data.playlist;
+        if (data.settings) Object.assign(settings, data.settings);
+        if (settings.playOrder === 'shuffle') playlist = shuffle(playlist);
+        document.getElementById('setupScreen').style.display = 'none';
+        applySettings();
+        initPlayer();
+        return;
+      }
+    }
+  } catch(e) { console.warn('Server playlist fetch failed:', e); }
+  // No playlist — show setup screen
 }
 
 function loadDemo() {
@@ -594,6 +613,11 @@ document.querySelectorAll('.menu-item').forEach((el) => {
 setInterval(() => {
   if (window.speechSynthesis?.speaking) { window.speechSynthesis.pause(); window.speechSynthesis.resume(); }
 }, 10000);
+
+// Register service worker for PWA / native app support
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
 </script>
 </body>
 </html>
