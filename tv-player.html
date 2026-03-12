@@ -83,6 +83,27 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
 .t-cancel{font-family:'Fredoka One',cursive;font-size:clamp(14px,2vw,20px);background:transparent;color:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:8px 28px;cursor:pointer;margin-top:14px;display:block;width:100%;transition:color .2s}
 .t-cancel.focused{color:rgba(255,255,255,.7)}
 
+/* ── PAUSE OVERLAY ── */
+#pauseOverlay{position:fixed;inset:0;z-index:12;background:rgba(0,0,0,.55);display:none;animation:poFadeIn .2s ease}
+@keyframes poFadeIn{from{opacity:0}to{opacity:1}}
+.po-top{position:absolute;top:24px;left:50%;transform:translateX(-50%);display:flex;gap:12px}
+.po-btn{width:52px;height:52px;border-radius:50%;border:2px solid rgba(255,255,255,.2);background:rgba(0,0,0,.6);color:white;font-size:22px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px)}
+.po-btn:hover,.po-btn:focus{border-color:rgba(255,255,255,.5);background:rgba(255,255,255,.15);transform:scale(1.1)}
+.po-nav{position:absolute;top:50%;transform:translateY(-50%);width:72px;height:120px;border-radius:16px;border:2px solid rgba(255,255,255,.15);background:rgba(0,0,0,.5);color:white;font-size:32px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px)}
+.po-nav:hover,.po-nav:focus{border-color:rgba(255,255,255,.4);background:rgba(255,255,255,.1);transform:translateY(-50%) scale(1.05)}
+.po-prev{left:24px}
+.po-next{right:24px}
+.po-play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:80px;height:80px;border-radius:50%;border:3px solid rgba(255,255,255,.3);background:rgba(0,0,0,.6);color:white;font-size:36px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px)}
+.po-play:hover,.po-play:focus{border-color:rgba(255,255,255,.6);background:rgba(255,255,255,.15);transform:translate(-50%,-50%) scale(1.1)}
+.po-bottom{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);display:flex;gap:12px}
+@media(max-width:500px){
+  .po-nav{width:52px;height:80px;font-size:24px}
+  .po-prev{left:8px}
+  .po-next{right:8px}
+  .po-play{width:64px;height:64px;font-size:28px}
+  .po-btn{width:44px;height:44px;font-size:18px}
+}
+
 /* ── PLAYLIST MANAGER ── */
 #playlistMgr{position:fixed;inset:0;z-index:17;background:rgba(0,0,0,.94);display:flex;opacity:0;pointer-events:none;transition:opacity .25s;backdrop-filter:blur(16px)}
 #playlistMgr.open{opacity:1;pointer-events:all}
@@ -131,10 +152,6 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
 .pm-tab{flex:1;text-align:center;padding:12px;font-family:'Fredoka One',cursive;font-size:14px;color:rgba(255,255,255,.3);cursor:pointer;transition:all .15s;border-bottom:2px solid transparent}
 .pm-tab.active{color:white;border-bottom-color:#ff6b35}
 .pm-tab.focused{color:rgba(255,255,255,.7);background:rgba(255,255,255,.04)}
-.pm-settings{border-top:1px solid rgba(255,255,255,.08);padding:4px 8px 8px}
-.pm-timer-pills{display:flex;flex-wrap:wrap;gap:4px;padding:4px}
-.pm-timer-pill{font-family:'Fredoka One',cursive;font-size:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:4px 10px;color:rgba(255,255,255,.35);cursor:pointer;transition:all .15s}
-.pm-timer-pill.active{background:rgba(255,107,53,.15);border-color:#ff6b35;color:#ff6b35}
 .pm-status{padding:8px 16px;font-size:12px;color:rgba(255,255,255,.25);text-align:center}
 
 /* ── SETUP SCREEN ── */
@@ -189,7 +206,7 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
 <!-- Main Menu -->
 <div id="menu">
   <div class="menu-box">
-    <div class="menu-title" id="menuChannelName">🚛 Меню</div>
+    <div class="menu-title" id="menuChannelName">🚛 Menu</div>
     <div class="menu-sub">Use ↑↓ and OK on your remote</div>
     <div class="menu-item" data-action="next">⏭ Next Video</div>
     <div class="menu-item" data-action="prev">⏮ Previous Video</div>
@@ -219,6 +236,19 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
   </div>
 </div>
 
+<!-- Pause Overlay -->
+<div id="pauseOverlay" style="display:none">
+  <div class="po-top">
+    <button class="po-btn" onclick="poAction('manage')" title="Manage Playlist">📋</button>
+    <button class="po-btn" onclick="poAction('timer')" id="poTimerBtn" title="Sleep Timer">🌙</button>
+    <button class="po-btn" onclick="poAction('reload')" title="Reload Playlist">🔄</button>
+  </div>
+  <button class="po-nav po-prev" onclick="poAction('prev')" title="Previous">❮</button>
+  <button class="po-play" onclick="poAction('play')" id="poPlayBtn" title="Play">▶</button>
+  <button class="po-nav po-next" onclick="poAction('next')" title="Next">❯</button>
+  <div class="po-bottom" id="poBottom"></div>
+</div>
+
 <!-- Playlist Manager -->
 <div id="playlistMgr">
   <div class="pm-sidebar">
@@ -227,17 +257,7 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
       <div class="pm-close" id="pmClose" onclick="closePlaylistMgr()">✕ Close</div>
     </div>
     <div class="pm-list" id="pmList"></div>
-    <div class="pm-settings" id="pmSettings">
-      <div style="font-family:'Fredoka One',cursive;font-size:13px;color:rgba(255,255,255,.3);padding:8px 12px 4px">🌙 Sleep Timer</div>
-      <div class="pm-timer-pills" id="pmTimerPills">
-        <span class="pm-timer-pill" data-min="0" onclick="pmSetTimer(0)">Off</span>
-        <span class="pm-timer-pill" data-min="15" onclick="pmSetTimer(15)">15m</span>
-        <span class="pm-timer-pill" data-min="30" onclick="pmSetTimer(30)">30m</span>
-        <span class="pm-timer-pill" data-min="45" onclick="pmSetTimer(45)">45m</span>
-        <span class="pm-timer-pill" data-min="60" onclick="pmSetTimer(60)">1h</span>
-        <span class="pm-timer-pill" data-min="90" onclick="pmSetTimer(90)">90m</span>
-      </div>
-    </div>
+
     <div class="pm-status" id="pmStatus"></div>
   </div>
   <div class="pm-main">
@@ -831,6 +851,59 @@ function pmAddVideo(i) {
   }
 }
 
+// ──────────────────────────── PAUSE OVERLAY ────────────────────────────
+let poVisible = false;
+let poHideTimer = null;
+
+function togglePauseOverlay() {
+  if (poVisible) { hidePauseOverlay(); resumePlay(); }
+  else showPauseOverlay();
+}
+
+function showPauseOverlay() {
+  poVisible = true;
+  if (ytPlayer) { try { ytPlayer.pauseVideo(); } catch(e){} }
+  const el = document.getElementById('pauseOverlay');
+  el.style.display = 'block';
+  document.getElementById('poPlayBtn').textContent = '▶';
+  // Update timer button
+  updatePoTimerBtn();
+  showHUD(0);
+}
+
+function hidePauseOverlay() {
+  poVisible = false;
+  document.getElementById('pauseOverlay').style.display = 'none';
+  showHUD();
+}
+
+function resumePlay() {
+  if (ytPlayer) { try { ytPlayer.playVideo(); } catch(e){} }
+}
+
+function updatePoTimerBtn() {
+  const btn = document.getElementById('poTimerBtn');
+  const bottom = document.getElementById('poBottom');
+  if (timerSeconds > 0) {
+    btn.title = 'Cancel Timer';
+    const m = Math.floor(timerSeconds / 60);
+    bottom.innerHTML = `<button class="po-btn" onclick="poAction('cancelTimer')" style="width:auto;border-radius:26px;padding:0 16px;font-size:14px;gap:6px">❌ Cancel Timer (${m}m)</button>`;
+  } else {
+    btn.title = 'Sleep Timer';
+    bottom.innerHTML = '';
+  }
+}
+
+function poAction(action) {
+  if (action === 'play') { hidePauseOverlay(); resumePlay(); }
+  else if (action === 'next') { hidePauseOverlay(); nextVideo(); }
+  else if (action === 'prev') { hidePauseOverlay(); prevVideo(); }
+  else if (action === 'manage') { hidePauseOverlay(); openPlaylistMgr(); }
+  else if (action === 'timer') { hidePauseOverlay(); openTimerMenu(); }
+  else if (action === 'reload') { hidePauseOverlay(); loadPlaylistFromServer(); }
+  else if (action === 'cancelTimer') { cancelTimer(); updatePoTimerBtn(); }
+}
+
 function pmSetTimer(min) {
   settings.sleepTimer = min;
   selectedTimerMin = min;
@@ -947,17 +1020,26 @@ document.addEventListener('keydown', e => {
     e.preventDefault(); return;
   }
 
+  // Pause overlay
+  if (poVisible) {
+    if (e.key === 'Escape' || e.key === 'Backspace' || e.key === 'Enter' || e.key === ' ') { hidePauseOverlay(); resumePlay(); }
+    e.preventDefault(); return;
+  }
+
   // Playback
   showHUD();
-  if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') openMenu();
+  if (e.key === 'Enter' || e.key === ' ') togglePauseOverlay();
+  else if (e.key === 'Escape') openMenu();
   else if (e.key === 'ArrowRight') nextVideo();
   else if (e.key === 'ArrowLeft') prevVideo();
 });
 
-// Mouse/touch for click-to-show-HUD
-document.addEventListener('click', () => {
+// Mouse/touch — toggle pause overlay (not menu)
+document.addEventListener('click', (e) => {
   if (goodnightActive) { wakeFromGoodnight(); return; }
-  if (!menuOpen && !timerMenuOpen && !pmOpen) { showHUD(); setTimeout(openMenu, 100); }
+  // Ignore clicks on overlay buttons themselves
+  if (e.target.closest('#pauseOverlay') || e.target.closest('#menu') || e.target.closest('#timerMenu') || e.target.closest('#playlistMgr')) return;
+  if (!menuOpen && !timerMenuOpen && !pmOpen) togglePauseOverlay();
 });
 
 // Click handlers for timer menu
