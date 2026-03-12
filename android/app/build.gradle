@@ -10,8 +10,8 @@ android {
         applicationId "com.liamtv.app"
         minSdk 21
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode 3
+        versionName "1.3"
 
         // Set your site URL here
         buildConfigField "String", "TV_PLAYER_URL", "\"https://liamtv.vercel.app/tv-player.html\""
