@@ -95,6 +95,15 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
 .home-pl-btn .pl-info{flex:1;min-width:0}
 .home-pl-btn .pl-name{display:block}
 .home-pl-btn .pl-count{font-size:clamp(11px,1.8vw,14px);opacity:.6;font-weight:400}
+.home-liamtv-btn{font-family:'Fredoka One',cursive;font-size:clamp(20px,4vw,32px);background:linear-gradient(135deg,#ff6b35,#ff3366,#ffd700);color:white;border:none;border-radius:22px;padding:22px 36px;cursor:pointer;display:flex;align-items:center;gap:16px;transition:all .2s;box-shadow:0 8px 0 #8b0020,0 12px 40px rgba(255,51,102,.3);width:100%;max-width:500px;text-align:left;margin-bottom:12px;position:relative;overflow:hidden}
+.home-liamtv-btn::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent);transform:translateX(-100%);animation:ltvShimmer 3s infinite}
+@keyframes ltvShimmer{0%{transform:translateX(-100%)}40%{transform:translateX(100%)}100%{transform:translateX(100%)}}
+.home-liamtv-btn:hover,.home-liamtv-btn:focus{transform:translateY(-3px);box-shadow:0 11px 0 #8b0020,0 16px 50px rgba(255,51,102,.4)}
+.home-liamtv-btn:active{transform:translateY(2px);box-shadow:0 4px 0 #8b0020}
+.ltv-icon{font-size:clamp(32px,6vw,48px);flex-shrink:0}
+.ltv-info{flex:1}
+.ltv-title{display:block;font-size:clamp(20px,4vw,32px)}
+.ltv-desc{display:block;font-size:clamp(11px,1.8vw,14px);opacity:.7;font-weight:400;margin-top:2px}
 .home-new-btn{font-family:'Fredoka One',cursive;font-size:clamp(16px,2.5vw,22px);background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.15);border-radius:16px;padding:14px 28px;color:rgba(255,255,255,.4);cursor:pointer;transition:all .15s;width:100%;max-width:500px}
 .home-new-btn:hover,.home-new-btn:focus{border-color:rgba(255,255,255,.3);color:rgba(255,255,255,.6);background:rgba(255,255,255,.08)}
 .home-exit-btn{font-family:'Fredoka One',cursive;font-size:clamp(14px,2vw,18px);background:rgba(255,60,60,.12);border:2px solid rgba(255,60,60,.25);border-radius:14px;padding:12px 32px;color:#ff6b6b;cursor:pointer;transition:all .15s;margin-top:16px}
@@ -308,6 +317,13 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
 <div id="homeScreen">
   <div class="home-title">🚛 Liam TV</div>
   <div class="home-sub">Pick a playlist to watch!</div>
+  <button class="home-liamtv-btn" onclick="startLiamTV()" id="homeLiamBtn">
+    <span class="ltv-icon">🚛</span>
+    <span class="ltv-info">
+      <span class="ltv-title">Liam TV</span>
+      <span class="ltv-desc">Auto-plays videos you'll love</span>
+    </span>
+  </button>
   <div class="home-playlists" id="homePlaylists">
     <div class="home-loading">Loading playlists...</div>
   </div>
@@ -460,6 +476,7 @@ function goHome() {
   if (ytPlayer) { try { ytPlayer.stopVideo(); } catch(e){} }
   cancelTimer();
   currentPlaylistName = null;
+  liamTVMode = false;
   playlist = [];
   currentIdx = 0;
   hidePauseOverlay();
@@ -496,6 +513,120 @@ function applySettings() {
 }
 
 function shuffle(arr) { return [...arr].sort(() => Math.random() - .5); }
+
+// ──────────────────────────── LIAM TV AUTO-PLAY ────────────────────────────
+let liamTVMode = false;
+let liamTVPlayed = new Set();
+let liamTVTaste = [];
+let liamTVLoading = false;
+
+async function startLiamTV() {
+  document.getElementById('homeLiamBtn').querySelector('.ltv-desc').textContent = 'Loading your taste profile...';
+  
+  // Gather taste profile from all playlists
+  try {
+    const r = await fetch('/api/playlists');
+    const data = await r.json();
+    const allVideos = [];
+    for (const p of (data.playlists || [])) {
+      const pr = await fetch(`/api/playlist?name=${encodeURIComponent(p.name)}`);
+      const pd = await pr.json();
+      for (const v of (pd.videos || [])) {
+        allVideos.push({ title: v.title, channel: v.channel });
+      }
+    }
+    
+    if (allVideos.length === 0) {
+      document.getElementById('homeLiamBtn').querySelector('.ltv-desc').textContent = 'Add some playlists first!';
+      setTimeout(() => {
+        document.getElementById('homeLiamBtn').querySelector('.ltv-desc').textContent = 'Auto-plays videos you\'ll love';
+      }, 2000);
+      return;
+    }
+    
+    liamTVTaste = allVideos;
+    liamTVMode = true;
+    liamTVPlayed = new Set();
+    currentPlaylistName = null;
+    playlist = [];
+    currentIdx = 0;
+    settings.channelName = '🚛 Liam TV';
+    
+    document.getElementById('homeScreen').style.display = 'none';
+    applySettings();
+    
+    // Find and play first video
+    await liamTVNext();
+  } catch(e) {
+    console.warn('LiamTV start failed:', e);
+    document.getElementById('homeLiamBtn').querySelector('.ltv-desc').textContent = 'Failed to load — try again';
+  }
+}
+
+async function liamTVNext() {
+  if (liamTVLoading) return;
+  liamTVLoading = true;
+  
+  try {
+    // AI generates a search query based on taste
+    const sample = shuffle(liamTVTaste).slice(0, 8);
+    const tasteStr = sample.map(v => `"${v.title}" by ${v.channel}`).join(', ');
+    
+    const resp = await fetch('/api/anthropic', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 150,
+        system: 'You pick YouTube search queries to find kid-safe videos similar to the ones listed. Return ONLY a JSON object: {"query": "search query", "reason": "1-2 word reason"}. Make each query specific and varied — try different angles: compilations, specific channels, related topics, specific shows. Keep it fresh and age-appropriate for a 3-year-old.',
+        messages: [{ role: 'user', content: `Kid watches: ${tasteStr}\n\nAlready played ${liamTVPlayed.size} videos this session. Find something ${liamTVPlayed.size === 0 ? 'great to start with' : 'fresh and different'}.` }]
+      })
+    });
+    const aiData = await resp.json();
+    const result = JSON.parse(aiData.content[0].text.replace(/```json|```/g, '').trim());
+    
+    // Search YouTube
+    const ytResp = await fetch(`/api/youtube?endpoint=search&part=snippet&q=${encodeURIComponent(result.query)}&type=video&safeSearch=strict&videoEmbeddable=true&maxResults=10`);
+    const ytData = await ytResp.json();
+    
+    // Find a video we haven't played
+    let picked = null;
+    for (const item of (ytData.items || [])) {
+      const id = item.id.videoId;
+      if (!liamTVPlayed.has(id)) {
+        picked = {
+          id,
+          title: item.snippet.title,
+          channel: item.snippet.channelTitle,
+          thumb: item.snippet.thumbnails?.medium?.url || `https://img.youtube.com/vi/${id}/mqdefault.jpg`
+        };
+        break;
+      }
+    }
+    
+    if (!picked) {
+      // All results already played — try again with different query
+      liamTVLoading = false;
+      if (liamTVPlayed.size > 50) liamTVPlayed.clear(); // Reset after many plays
+      return liamTVNext();
+    }
+    
+    liamTVPlayed.add(picked.id);
+    playlist = [picked];
+    currentIdx = 0;
+    
+    if (ytPlayer) {
+      ytPlayer.loadVideoById(picked.id);
+    } else {
+      initPlayer();
+    }
+    updateHUD();
+    
+  } catch(e) {
+    console.warn('LiamTV next failed:', e);
+  }
+  liamTVLoading = false;
+}
 
 // ──────────────────────────── YOUTUBE PLAYER ────────────────────────────
 function initPlayer() {
@@ -579,6 +710,7 @@ function trackProgress() {
 }
 
 function nextVideo() {
+  if (liamTVMode) { liamTVNext(); return; }
   if (settings.playOrder === 'repeat1') { ytPlayer?.seekTo(0); ytPlayer?.playVideo(); return; }
   currentIdx = (currentIdx + 1) % playlist.length;
   loadCurrentVideo();
@@ -984,6 +1116,9 @@ function showPauseOverlay() {
   const el = document.getElementById('pauseOverlay');
   el.style.display = 'block';
   document.getElementById('poPlayBtn').textContent = '▶';
+  // Hide prev + manage in Liam TV mode
+  document.querySelector('.po-prev').style.display = liamTVMode ? 'none' : 'flex';
+  document.querySelector('.po-top').style.display = liamTVMode ? 'none' : 'flex';
   // Update timer button
   updatePoTimerBtn();
   showHUD(0);
