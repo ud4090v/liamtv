@@ -88,6 +88,12 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
 #playlistMgr.open{opacity:1;pointer-events:all}
 .pm-sidebar{width:340px;background:rgba(10,10,25,.98);border-right:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;overflow:hidden}
 .pm-main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+@media(max-width:700px),(orientation:portrait){
+  #playlistMgr{flex-direction:column}
+  .pm-sidebar{width:100%;max-height:45vh;border-right:none;border-bottom:1px solid rgba(255,255,255,.08)}
+  .pm-main{flex:1;min-height:0}
+  .pm-result-thumb{width:80px;height:45px}
+}
 .pm-header{padding:20px 24px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between}
 .pm-title{font-family:'Fredoka One',cursive;font-size:22px;background:linear-gradient(135deg,#ff6b35,#ffd700);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .pm-close{font-family:'Fredoka One',cursive;font-size:14px;color:rgba(255,255,255,.3);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:6px 14px;cursor:pointer}
@@ -264,14 +270,10 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
     <div class="setup-title">Liam TV</div>
     <div class="setup-steps">
       <strong>No playlist found!</strong><br/><br/>
-      <strong>Option 1:</strong> Press ▶ below to watch a demo playlist<br/>
-      <strong>Option 2:</strong> Open the <strong>Playlist Manager</strong> on your phone to build one<br/>
-      <strong>Option 3:</strong> Press OK/Enter to open the built-in playlist editor
+      Tap below to search and add videos, or open<br/>
+      <strong>liamtv.vercel.app/playlist-manager.html</strong> on your phone.
     </div>
-    <button class="start-btn" onclick="loadDemo()">▶ Watch Demo Playlist</button>
-    <div class="setup-hint" style="margin-top:12px;cursor:pointer;color:rgba(255,255,255,.4)" onclick="document.getElementById('setupScreen').style.display='none';openPlaylistMgr()">
-      Or press Enter to manage playlist →
-    </div>
+    <button class="start-btn" onclick="document.getElementById('setupScreen').style.display='none';openPlaylistMgr()">🔍 Build Your Playlist</button>
   </div>
 </div>
 
@@ -297,11 +299,7 @@ let hudHideTimer = null;
 const TIMER_MINS = [10, 20, 30, 45, 60, 90];
 
 // Demo playlist (popular kids-safe monster truck content)
-const DEMO_PLAYLIST = [
-  { id: 'E6ZaFdwpFhk', title: 'Monster Truck Videos for Kids', channel: 'Blippi', thumb: 'https://img.youtube.com/vi/E6ZaFdwpFhk/mqdefault.jpg' },
-  { id: 'HdXYPGmzGlk', title: 'Hot Wheels Monster Trucks', channel: 'Hot Wheels', thumb: 'https://img.youtube.com/vi/HdXYPGmzGlk/mqdefault.jpg' },
-  { id: 'G9eVF2jFHNY', title: 'Monster Trucks for Children', channel: 'Kids Channel', thumb: 'https://img.youtube.com/vi/G9eVF2jFHNY/mqdefault.jpg' },
-];
+const DEMO_PLAYLIST = [];
 
 // ──────────────────────────── INIT ────────────────────────────
 window.addEventListener('load', () => {
@@ -890,7 +888,8 @@ document.addEventListener('keydown', e => {
 
   // Playlist manager
   if (pmOpen) {
-    if (e.key === 'Escape' || e.key === 'Backspace') { closePlaylistMgr(); e.preventDefault(); return; }
+    const inInput = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
+    if (e.key === 'Escape' || (e.key === 'Backspace' && !inInput)) { closePlaylistMgr(); e.preventDefault(); return; }
     if (pmFocus === 'list') {
       if (e.key === 'ArrowUp') pmListIdx = Math.max(0, pmListIdx - 1);
       else if (e.key === 'ArrowDown') pmListIdx = Math.min(playlist.length - 1, pmListIdx + 1);
@@ -899,10 +898,18 @@ document.addEventListener('keydown', e => {
       else if (e.key === 'Delete' || e.key === 'd') pmRemoveVideo(pmListIdx);
       renderPmList();
     } else if (pmFocus === 'search') {
-      if (e.key === 'ArrowLeft' && document.activeElement.selectionStart === 0) { pmFocus = 'list'; document.activeElement.blur(); renderPmList(); }
-      else if (e.key === 'ArrowDown') { pmFocus = 'results'; pmResultIdx = 0; renderPmResults(); }
-      else if (e.key === 'Tab') { e.preventDefault(); pmSwitchTab(pmActiveTab === 'search' ? 'ai' : 'search'); document.getElementById(pmActiveTab === 'search' ? 'pmSearchInput' : 'pmAiInput').focus(); }
-      else return; // Let input handle other keys
+      if (inInput) {
+        // Let the input handle all normal typing — only intercept navigation keys
+        if (e.key === 'Escape') { document.activeElement.blur(); pmFocus = 'list'; renderPmList(); }
+        else if (e.key === 'ArrowDown' && e.altKey === false) { pmFocus = 'results'; pmResultIdx = 0; document.activeElement.blur(); renderPmResults(); }
+        else if (e.key === 'Tab') { e.preventDefault(); pmSwitchTab(pmActiveTab === 'search' ? 'ai' : 'search'); document.getElementById(pmActiveTab === 'search' ? 'pmSearchInput' : 'pmAiInput').focus(); }
+        else return; // Let input handle typing, backspace, etc.
+      } else {
+        if (e.key === 'ArrowLeft') { pmFocus = 'list'; renderPmList(); }
+        else if (e.key === 'ArrowDown') { pmFocus = 'results'; pmResultIdx = 0; renderPmResults(); }
+        else if (e.key === 'Enter') { document.getElementById(pmActiveTab === 'search' ? 'pmSearchInput' : 'pmAiInput').focus(); }
+        else return;
+      }
     } else if (pmFocus === 'results') {
       if (e.key === 'ArrowUp') { if (pmResultIdx > 0) pmResultIdx--; else { pmFocus = 'search'; document.getElementById(pmActiveTab === 'search' ? 'pmSearchInput' : 'pmAiInput').focus(); } }
       else if (e.key === 'ArrowDown') pmResultIdx = Math.min(pmSearchResults.length - 1, pmResultIdx + 1);
