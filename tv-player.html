@@ -59,7 +59,7 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
 .counter-dot.active{background:#ffd700;transform:scale(1.4)}
 
 /* ── MENU OVERLAY ── */
-#menu{position:fixed;inset:0;z-index:15;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s;backdrop-filter:blur(12px)}
+#menu{position:fixed;inset:0;z-index:15;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s;backdrop-filter:blur(12px)}
 #menu.open{opacity:1;pointer-events:all}
 .menu-box{background:rgba(10,10,25,.97);border:1px solid rgba(255,255,255,.1);border-radius:32px;padding:40px 60px;min-width:min(560px,90vw);text-align:center;box-shadow:0 40px 80px rgba(0,0,0,.8)}
 .menu-title{font-family:'Fredoka One',cursive;font-size:clamp(28px,5vw,44px);background:linear-gradient(135deg,#ff6b35,#ffd700);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px}
@@ -69,7 +69,7 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
 .menu-item.danger.focused{background:rgba(100,200,255,.1);border-color:rgba(100,200,255,.3);color:#80d4ff}
 
 /* ── TIMER SELECT ── */
-#timerMenu{position:fixed;inset:0;z-index:16;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s;backdrop-filter:blur(14px)}
+#timerMenu{position:fixed;inset:0;z-index:16;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s;backdrop-filter:blur(14px)}
 #timerMenu.open{opacity:1;pointer-events:all}
 .timer-box{background:rgba(10,10,25,.98);border:1px solid rgba(255,255,255,.1);border-radius:32px;padding:48px 64px;text-align:center;min-width:min(640px,92vw)}
 .timer-heading{font-family:'Fredoka One',cursive;font-size:clamp(24px,4vw,40px);color:#ffd700;margin-bottom:8px}
@@ -627,10 +627,12 @@ async function startLiamTV() {
     currentIdx = 0;
     settings.channelName = '🚛 Liam TV';
     
-    document.getElementById('homeScreen').style.display = 'none';
     applySettings();
     
-    // Find and play first video
+    // Show loading state on home screen (don't hide it yet — avoid blank flash)
+    document.getElementById('homeLiamBtn').querySelector('.ltv-desc').textContent = '🔍 Finding a video...';
+    
+    // Find and play first video (home screen hides when video starts)
     await liamTVNext();
   } catch(e) {
     console.warn('LiamTV start failed:', e);
@@ -693,6 +695,9 @@ async function liamTVNext() {
     // Start watch timer — only save to history if watched 10+ seconds
     liamTVWatchStart = Date.now();
     liamTVCurrentPick = picked;
+    
+    // NOW hide home screen — video is ready to play
+    document.getElementById('homeScreen').style.display = 'none';
     
     if (ytPlayer) {
       ytPlayer.loadVideoById(picked.id);
@@ -943,7 +948,9 @@ const menuItems = () => [...document.querySelectorAll('#menu .menu-item:not([sty
 function openMenu() {
   menuOpen = true;
   menuFocusIdx = 0;
-  document.getElementById('menu').classList.add('open');
+  const m = document.getElementById('menu');
+  m.style.display = 'flex';
+  requestAnimationFrame(() => m.classList.add('open'));
   updateMenuFocus();
   showHUD(0);
   if (ytPlayer) { try { ytPlayer.pauseVideo(); } catch(e){} }
@@ -951,7 +958,9 @@ function openMenu() {
 
 function closeMenu() {
   menuOpen = false;
-  document.getElementById('menu').classList.remove('open');
+  const m = document.getElementById('menu');
+  m.classList.remove('open');
+  setTimeout(() => { if (!menuOpen) m.style.display = 'none'; }, 260);
   if (ytPlayer) { try { ytPlayer.playVideo(); } catch(e){} }
   showHUD();
 }
@@ -1282,13 +1291,17 @@ function openTimerMenu() {
   timerMenuOpen = true;
   timerFocusIdx = TIMER_MINS.indexOf(selectedTimerMin);
   if (timerFocusIdx < 0) timerFocusIdx = 1;
-  document.getElementById('timerMenu').classList.add('open');
+  const tm = document.getElementById('timerMenu');
+  tm.style.display = 'flex';
+  requestAnimationFrame(() => tm.classList.add('open'));
   renderTimerOptions();
 }
 
 function closeTimerMenu() {
   timerMenuOpen = false;
-  document.getElementById('timerMenu').classList.remove('open');
+  const tm = document.getElementById('timerMenu');
+  tm.classList.remove('open');
+  setTimeout(() => { if (!timerMenuOpen) tm.style.display = 'none'; }, 260);
 }
 
 function renderTimerOptions() {
