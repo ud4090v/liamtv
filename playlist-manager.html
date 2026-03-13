@@ -258,12 +258,42 @@ select option{background:#1c1c2e}
         <div class="divider"></div>
         <div class="section-title" style="font-size:15px;margin-bottom:8px"><span>🎯</span> Curation <span style="font-size:12px;color:var(--muted);font-family:'DM Sans',sans-serif;font-weight:400">(Liam TV mode)</span></div>
         <div class="hint" style="margin-bottom:12px">Controls how Liam TV balances replaying known videos vs discovering new ones. Goal: broad, balanced exposure — not a narrow rabbit hole.</div>
-        <div class="field" style="margin-bottom:16px">
+        <div class="field" style="margin-bottom:8px">
           <label>🧭 Parent Direction</label>
           <textarea id="parentDirection" oninput="saveSettings()"
-            placeholder="e.g. 'Focus on improving math and counting skills', 'Encourage curiosity about nature and animals', 'Mix of educational and pure fun — balance is fine', 'Introduce different world cultures and languages'"
-            style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;padding:12px 14px;outline:none;resize:vertical;min-height:80px;transition:border-color 0.2s;line-height:1.5"></textarea>
-          <span class="hint">Guides ALL new video discovery. Liam's preferences are respected, but searches are steered toward this goal. Leave blank for pure taste-based discovery.</span>
+            placeholder="Describe your goal in plain language..."
+            style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;padding:12px 14px;outline:none;resize:vertical;min-height:72px;transition:border-color 0.2s;line-height:1.5"></textarea>
+          <span class="hint">Guides ALL new video discovery. Your child's preferences are respected — searches find content they'll enjoy AND that serves your goal. Leave blank for pure taste-based discovery.</span>
+        </div>
+        <div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.18);border-radius:12px;padding:14px 16px;margin-bottom:16px">
+          <div style="font-size:12px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">💡 Example directions</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div class="direction-example" onclick="setDirection(this)" style="cursor:pointer;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;line-height:1.4;transition:border-color 0.15s">
+              <strong style="color:var(--text)">Math &amp; counting</strong><br/>
+              <span style="color:var(--muted)">"Focus on improving math and counting skills — find videos where Liam enjoys the content but also learns numbers, counting, basic arithmetic through play"</span>
+            </div>
+            <div class="direction-example" onclick="setDirection(this)" style="cursor:pointer;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;line-height:1.4;transition:border-color 0.15s">
+              <strong style="color:var(--text)">Language &amp; vocabulary</strong><br/>
+              <span style="color:var(--muted)">"Build vocabulary and early reading readiness — songs, stories, and shows that introduce new words and spelling in an engaging way"</span>
+            </div>
+            <div class="direction-example" onclick="setDirection(this)" style="cursor:pointer;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;line-height:1.4;transition:border-color 0.15s">
+              <strong style="color:var(--text)">Nature &amp; curiosity</strong><br/>
+              <span style="color:var(--muted)">"Encourage curiosity about the natural world — animals, plants, weather, space, how things work. Mix of wonder and fun, not dry documentary style"</span>
+            </div>
+            <div class="direction-example" onclick="setDirection(this)" style="cursor:pointer;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;line-height:1.4;transition:border-color 0.15s">
+              <strong style="color:var(--text)">World cultures</strong><br/>
+              <span style="color:var(--muted)">"Introduce different world cultures, languages, and traditions in a fun age-appropriate way — music, food, celebrations from around the world"</span>
+            </div>
+            <div class="direction-example" onclick="setDirection(this)" style="cursor:pointer;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;line-height:1.4;transition:border-color 0.15s">
+              <strong style="color:var(--text)">Balanced (educational + fun)</strong><br/>
+              <span style="color:var(--muted)">"Balance educational value with pure entertainment — roughly half and half. Don't force learning into everything, but don't ignore it either"</span>
+            </div>
+            <div class="direction-example" onclick="setDirection(this)" style="cursor:pointer;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;line-height:1.4;transition:border-color 0.15s">
+              <strong style="color:var(--text)">Creativity &amp; arts</strong><br/>
+              <span style="color:var(--muted)">"Foster creativity and artistic expression — drawing, music, crafts, imaginative play. Content that inspires making things, not just watching"</span>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:10px">↑ Tap any example to use it as a starting point</div>
         </div>
         <div class="settings-grid" style="margin-bottom:14px">
           <div class="field">
@@ -688,6 +718,17 @@ function addSelectedToPlaylist() {
 }
 
 // ─── UTILS ───
+// Tap an example direction card to pre-fill the textarea
+function setDirection(el) {
+  const text = el.querySelector('span').textContent.replace(/^"|"$/g, '').trim();
+  document.getElementById('parentDirection').value = text;
+  saveSettings();
+  // Brief highlight feedback
+  el.style.borderColor = 'var(--blue)';
+  setTimeout(() => el.style.borderColor = '', 600);
+  showToast('Direction set — tap Settings to adjust', 'success');
+}
+
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function escAttr(s) { return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
