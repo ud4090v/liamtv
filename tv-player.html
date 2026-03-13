@@ -553,6 +553,7 @@ function goHome() {
   currentPlaylistName = null;
   liamTVMode = false;
   liamTVQueue = [];
+  liamTVQueued = new Set();
   liamTVFilling = false;
   playlist = [];
   currentIdx = 0;
@@ -643,6 +644,7 @@ const LIAMTV_AUTO_LIMIT = 5;
 
 // ── Queue buffer for seamless continuous play ──
 let liamTVQueue = [];           // pre-fetched videos ready to play
+let liamTVQueued = new Set();   // IDs in the buffer (not yet watched — avoids dupes during fill)
 let liamTVFilling = false;      // prevent concurrent fill calls
 const LIAMTV_QUEUE_TARGET = 10; // fill up to this many
 const LIAMTV_QUEUE_REFILL = 5;  // refill when queue drops to this
@@ -716,6 +718,7 @@ async function startLiamTV() {
     liamTVMode = true;
     liamTVPlayed = new Set();
     liamTVQueue = [];
+    liamTVQueued = new Set();
     currentPlaylistName = null;
     playlist = [];
     currentIdx = 0;
@@ -749,18 +752,22 @@ async function liamTVFillQueue() {
   let attempts = 0;
   const maxAttempts = needed + 4; // a few extra attempts in case some return null
 
+  // Pass both watched + queued IDs to avoid duplicates in the buffer
+  const avoidIds = [...liamTVPlayed, ...liamTVQueued];
+
   while (added < needed && attempts < maxAttempts) {
     attempts++;
     try {
       const result = await apiNextVideo(
         liamTVTaste,
-        liamTVPlayed,
+        avoidIds,                       // watched + already-queued
         settings.contentFilters || '',
-        liamTVPlayed.size
+        liamTVPlayed.size               // session size = actually watched count
       );
-      if (result.video) {
-        liamTVPlayed.add(result.video.id);
+      if (result.video && !liamTVQueued.has(result.video.id)) {
+        liamTVQueued.add(result.video.id);  // track as queued, NOT as played
         liamTVQueue.push(result.video);
+        avoidIds.push(result.video.id);     // keep avoid list fresh within this fill
         added++;
       }
     } catch(e) {
@@ -800,6 +807,10 @@ async function liamTVNext() {
       setTimeout(() => liamTVNext(), 3000);
       return;
     }
+
+    // Move from queued → played (only now is it "watched")
+    liamTVQueued.delete(picked.id);
+    liamTVPlayed.add(picked.id);
 
     liamTVCurrentPick = picked;
     liamTVWatchStart = Date.now();
