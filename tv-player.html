@@ -421,6 +421,17 @@ async function apiNextVideo(taste, played, playlistFilters, sessionSize) {
   return resp.json(); // { video, query, reason }
 }
 
+// Fill LiamTV queue — balanced rotation + discovery
+async function apiFillQueue(history, avoidIds, playlistFilters, targetCount, minWatchCount, discoveryRatio) {
+  const resp = await fetch('/api/videos/fill-queue', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ history, avoidIds, playlistFilters, targetCount, minWatchCount, discoveryRatio }),
+  });
+  if (!resp.ok) throw new Error(`Fill-queue API error ${resp.status}`);
+  return resp.json(); // { videos[], allRotated, filtered }
+}
+
 // Fetch video metadata by ID
 async function apiVideoMeta(id) {
   const resp = await fetch(`/api/videos/meta?id=${encodeURIComponent(id)}`);
@@ -646,8 +657,14 @@ const LIAMTV_AUTO_LIMIT = 5;
 let liamTVQueue = [];           // pre-fetched videos ready to play
 let liamTVQueued = new Set();   // IDs in the buffer (not yet watched — avoids dupes during fill)
 let liamTVFilling = false;      // prevent concurrent fill calls
+let liamTVHistory = [];         // full history objects [{id,title,channel,thumb,watchCount,skipCount,lastWatched}]
 const LIAMTV_QUEUE_TARGET = 10; // fill up to this many
 const LIAMTV_QUEUE_REFILL = 5;  // refill when queue drops to this
+
+// LiamTV curation settings (per-playlist, stored in settings blob)
+// settings.minWatchCount  — rotation threshold before full-discovery (default 3)
+// settings.discoveryRatio — fraction of queue that is new content (default 0.4)
+// settings.skipThreshold  — skips before a video is pruned from history (default 3)
 
 function showLiamTVPause() {
   if (ytPlayer) { try { ytPlayer.pauseVideo(); } catch(e){} }
@@ -660,23 +677,55 @@ function resumeLiamTV() {
   liamTVNext();
 }
 
-async function saveLiamTVHistory(video) {
-  try {
-    const r = await fetch('/api/playlist?name=_liamtv-history');
-    const data = await r.json();
-    const history = data.videos || [];
-    // Avoid duplicates
-    if (!history.find(v => v.id === video.id)) {
-      history.push(video);
-      // Keep last 200 to avoid blob getting huge
-      const trimmed = history.slice(-200);
+// Update in-memory history and persist to blob.
+// type: 'watch' (≥10s) | 'skip' (<10s, user pressed next quickly)
+async function updateLiamTVHistory(video, type) {
+  const skipThreshold = settings.skipThreshold || 3;
+
+  // Update in-memory record
+  let record = liamTVHistory.find(v => v.id === video.id);
+  if (!record) {
+    record = { id: video.id, title: video.title, channel: video.channel, thumb: video.thumb,
+               watchCount: 0, skipCount: 0, lastWatched: 0 };
+    liamTVHistory.push(record);
+  }
+
+  if (type === 'watch') {
+    record.watchCount = (record.watchCount || 0) + 1;
+    record.lastWatched = Date.now();
+    record.skipCount = 0; // reset skip streak on a real watch
+  } else {
+    record.skipCount = (record.skipCount || 0) + 1;
+    // Prune if consistently skipped beyond threshold
+    if (record.skipCount >= skipThreshold) {
+      console.log(`LiamTV: pruning "${record.title}" after ${record.skipCount} skips`);
+      liamTVHistory = liamTVHistory.filter(v => v.id !== video.id);
+    }
+  }
+
+  // Persist to blob (debounced — don't hammer on every video)
+  debouncedSaveLiamTVHistory();
+}
+
+let _historyTimer = null;
+function debouncedSaveLiamTVHistory() {
+  if (_historyTimer) clearTimeout(_historyTimer);
+  _historyTimer = setTimeout(async () => {
+    try {
+      // Keep max 300 entries, sorted by lastWatched desc (most recent first)
+      const trimmed = [...liamTVHistory]
+        .sort((a, b) => (b.lastWatched || 0) - (a.lastWatched || 0))
+        .slice(0, 300);
       await fetch('/api/playlist?name=_liamtv-history', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ videos: trimmed, settings: { channelName: 'Liam TV History', playOrder: 'sequence', sleepTimer: 0 } })
+        body: JSON.stringify({
+          videos: trimmed,
+          settings: { channelName: 'Liam TV History', playOrder: 'sequence', sleepTimer: 0 }
+        })
       });
-    }
-  } catch(e) { console.warn('Failed to save LiamTV history:', e); }
+    } catch(e) { console.warn('Failed to save LiamTV history:', e); }
+  }, 4000);
 }
 
 async function startLiamTV() {
@@ -697,15 +746,23 @@ async function startLiamTV() {
       }
     }
     
-    // Also load Liam TV history for richer taste profile
+    // Load LiamTV history — full objects with watchCount/skipCount
+    liamTVHistory = [];
     try {
       const hr = await fetch('/api/playlist?name=_liamtv-history');
       const hd = await hr.json();
       for (const v of (hd.videos || [])) {
+        // Support both old schema (plain video) and new schema (with counters)
+        liamTVHistory.push({
+          id: v.id, title: v.title, channel: v.channel, thumb: v.thumb,
+          watchCount: v.watchCount || 0,
+          skipCount: v.skipCount || 0,
+          lastWatched: v.lastWatched || 0,
+        });
         allVideos.push({ title: v.title, channel: v.channel });
       }
     } catch(e) {}
-    
+
     if (allVideos.length === 0) {
       document.getElementById('homeLiamBtn').querySelector('.ltv-desc').textContent = 'Add some playlists first!';
       setTimeout(() => {
@@ -713,7 +770,7 @@ async function startLiamTV() {
       }, 2000);
       return;
     }
-    
+
     liamTVTaste = allVideos;
     liamTVMode = true;
     liamTVPlayed = new Set();
@@ -738,45 +795,43 @@ async function startLiamTV() {
   }
 }
 
-// Fill the queue buffer in the background.
-// Fetches a batch of 10 videos via /api/videos/next (which generates 6 queries
-// and tries each — guaranteed to return a video or fail gracefully).
+// Fill the queue buffer using the balanced rotation+discovery API.
+// Rotation: least-watched history videos come back first (even exposure).
+// Discovery: new content at controlled ratio (default 40%).
 async function liamTVFillQueue() {
   if (liamTVFilling) return;
   liamTVFilling = true;
 
   const needed = LIAMTV_QUEUE_TARGET - liamTVQueue.length;
-  console.log(`LiamTV: filling queue (need ${needed} more, have ${liamTVQueue.length})`);
-
-  let added = 0;
-  let attempts = 0;
-  const maxAttempts = needed + 4; // a few extra attempts in case some return null
-
-  // Pass both watched + queued IDs to avoid duplicates in the buffer
   const avoidIds = [...liamTVPlayed, ...liamTVQueued];
 
-  while (added < needed && attempts < maxAttempts) {
-    attempts++;
-    try {
-      const result = await apiNextVideo(
-        liamTVTaste,
-        avoidIds,                       // watched + already-queued
-        settings.contentFilters || '',
-        liamTVPlayed.size               // session size = actually watched count
-      );
-      if (result.video && !liamTVQueued.has(result.video.id)) {
-        liamTVQueued.add(result.video.id);  // track as queued, NOT as played
-        liamTVQueue.push(result.video);
-        avoidIds.push(result.video.id);     // keep avoid list fresh within this fill
-        added++;
+  console.log(`LiamTV: filling queue (need ${needed}, history=${liamTVHistory.length}, avoid=${avoidIds.length})`);
+
+  try {
+    const result = await apiFillQueue(
+      liamTVHistory,
+      avoidIds,
+      settings.contentFilters || '',
+      needed,
+      settings.minWatchCount  !== undefined ? settings.minWatchCount  : 3,
+      settings.discoveryRatio !== undefined ? settings.discoveryRatio : 0.4,
+    );
+
+    for (const v of (result.videos || [])) {
+      if (!liamTVQueued.has(v.id)) {
+        liamTVQueued.add(v.id);
+        liamTVQueue.push(v);
       }
-    } catch(e) {
-      console.warn('LiamTV fill attempt failed:', e.message);
-      break;
     }
+
+    if (result.allRotated) {
+      console.log('LiamTV: full rotation complete — all history hit minWatchCount, going full discovery');
+    }
+    console.log(`LiamTV: queue filled — ${liamTVQueue.length} ready (${result.filtered || 0} filtered out)`);
+  } catch(e) {
+    console.warn('LiamTV fill failed:', e.message);
   }
 
-  console.log(`LiamTV: queue filled — ${liamTVQueue.length} videos ready`);
   liamTVFilling = false;
 }
 
@@ -888,9 +943,9 @@ function onPlayerStateChange(e) {
   if (e.data === YT.PlayerState.ENDED) {
     // Credit weight for watching to completion
     checkWatchCredit();
-    // Video finished naturally — always save to history in Liam TV mode
+    // Video finished naturally = watched to completion = strong positive signal
     if (liamTVMode && liamTVCurrentPick) {
-      saveLiamTVHistory(liamTVCurrentPick);
+      updateLiamTVHistory(liamTVCurrentPick, 'watch');
     }
     // In Liam TV mode: auto-advance up to limit, then pause and wait
     if (liamTVMode) {
@@ -969,11 +1024,16 @@ function trackProgress() {
 
 function nextVideo() {
   if (liamTVMode) {
-    // User pressed next — reset auto-advance counter
     liamTVAutoCount = 0;
-    // Save to history only if watched 10+ seconds
-    if (liamTVCurrentPick && (Date.now() - liamTVWatchStart) >= 10000) {
-      saveLiamTVHistory(liamTVCurrentPick);
+    if (liamTVCurrentPick) {
+      const watchedMs = Date.now() - liamTVWatchStart;
+      if (watchedMs >= 10000) {
+        // Watched ≥10s — counts as a watch (even if manually skipped)
+        updateLiamTVHistory(liamTVCurrentPick, 'watch');
+      } else {
+        // Skipped quickly — negative signal
+        updateLiamTVHistory(liamTVCurrentPick, 'skip');
+      }
     }
     liamTVNext();
     return;
