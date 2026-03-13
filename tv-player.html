@@ -740,10 +740,12 @@ async function liamTVNext() {
     let picked = result.video || null;
 
     if (!picked) {
-      // Nothing safe found — reset played set and retry
+      // API exhausted all query attempts (very rare — usually means APIs are slow/down).
+      // Wait briefly and retry rather than spinning.
       liamTVLoading = false;
-      if (liamTVPlayed.size > 50) liamTVPlayed.clear();
-      return liamTVNext();
+      console.warn('liamTVNext: API returned no video, retrying in 3s');
+      setTimeout(() => liamTVNext(), 3000);
+      return;
     }
     
     liamTVPlayed.add(picked.id);
