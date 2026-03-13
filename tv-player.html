@@ -544,6 +544,100 @@ function applySettings() {
 
 function shuffle(arr) { return [...arr].sort(() => Math.random() - .5); }
 
+// ──────────────────────────── AUTO-GROW PLAYLIST ────────────────────────────
+let autoGrowRunning = false;
+
+async function checkAutoGrow() {
+  // Only auto-grow named playlists (not Liam TV mode, not temp playlists)
+  if (liamTVMode || !currentPlaylistName || currentPlaylistName.startsWith('_')) return;
+  const remaining = playlist.length - currentIdx - 1;
+  if (remaining > 5 || autoGrowRunning) return;
+  
+  autoGrowRunning = true;
+  try {
+    // Build context from playlist prompts + top-watched videos
+    const prompts = settings.prompts || [];
+    const topWatched = [...playlist]
+      .sort((a, b) => (b.weight || 1) - (a.weight || 1))
+      .slice(0, 8)
+      .map(v => `"${v.title}" (watched ${v.weight || 1}x)${v.summary ? ': ' + v.summary : ''}`);
+    
+    const existingIds = new Set(playlist.map(v => v.id));
+    
+    const context = [
+      prompts.length ? `Playlist search history: ${prompts.join('; ')}` : '',
+      topWatched.length ? `Most watched videos: ${topWatched.join(', ')}` : '',
+      `Playlist: "${settings.channelName || currentPlaylistName}"`,
+      `Currently has ${playlist.length} videos.`
+    ].filter(Boolean).join('\n');
+    
+    // Ask Claude for search queries
+    const resp = await fetch('/api/anthropic', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 300,
+        system: 'You generate YouTube search queries to grow a kids playlist. Based on the playlist context (search history, watched videos, playlist name), generate 5 diverse search queries to find MORE similar videos. Return ONLY a JSON array of search query strings. Keep all content appropriate for a 3-year-old. Vary the queries — mix specific titles, channels, compilations, and related topics.',
+        messages: [{ role: 'user', content: context }]
+      })
+    });
+    const aiData = await resp.json();
+    const queries = JSON.parse(aiData.content[0].text.replace(/```json|```/g, '').trim());
+    
+    // Search YouTube with each query
+    const newVideos = [];
+    for (const q of queries) {
+      if (newVideos.length >= 10) break;
+      try {
+        const r = await fetch(`/api/youtube?endpoint=search&part=snippet&q=${encodeURIComponent(q)}&type=video&safeSearch=strict&videoEmbeddable=true&maxResults=5`);
+        const data = await r.json();
+        for (const item of (data.items || [])) {
+          const id = item.id.videoId;
+          if (!existingIds.has(id) && newVideos.length < 10) {
+            existingIds.add(id);
+            newVideos.push({
+              id,
+              title: item.snippet.title,
+              channel: item.snippet.channelTitle,
+              thumb: item.snippet.thumbnails?.medium?.url || `https://img.youtube.com/vi/${id}/mqdefault.jpg`,
+              summary: '',
+              weight: 0
+            });
+          }
+        }
+      } catch(e) {}
+    }
+    
+    if (newVideos.length > 0) {
+      // Generate summaries for new videos
+      try {
+        const titles = newVideos.map(v => v.title).join(', ');
+        const sumResp = await fetch('/api/anthropic', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 500,
+            system: 'Generate very short 5-8 word summaries for each video title. Return ONLY a JSON array of strings, one per video, in order.',
+            messages: [{ role: 'user', content: `Video titles: ${titles}` }]
+          })
+        });
+        const sumData = await sumResp.json();
+        const summaries = JSON.parse(sumData.content[0].text.replace(/```json|```/g, '').trim());
+        newVideos.forEach((v, i) => { if (summaries[i]) v.summary = summaries[i]; });
+      } catch(e) {}
+      
+      playlist.push(...newVideos);
+      pmSavePlaylist();
+      console.log(`Auto-grow: added ${newVideos.length} videos to ${currentPlaylistName}`);
+    }
+  } catch(e) {
+    console.warn('Auto-grow failed:', e);
+  }
+  autoGrowRunning = false;
+}
+
 // ──────────────────────────── LIAM TV AUTO-PLAY ────────────────────────────
 let liamTVMode = false;
 let liamTVPlayed = new Set();
@@ -755,12 +849,16 @@ function onPlayerReady(e) {
   e.target.setVolume(100);
   e.target.playVideo();
   updateHUD();
+  startWatchTracker();
+  checkAutoGrow();
   // Start sleep timer if configured
   if (settings.sleepTimer > 0) startTimer(settings.sleepTimer);
 }
 
 function onPlayerStateChange(e) {
   if (e.data === YT.PlayerState.ENDED) {
+    // Credit weight for watching to completion
+    checkWatchCredit();
     // Video finished naturally — always save to history in Liam TV mode
     if (liamTVMode && liamTVCurrentPick) {
       saveLiamTVHistory(liamTVCurrentPick);
@@ -777,6 +875,8 @@ function onPlayerStateChange(e) {
   } else if (e.data === YT.PlayerState.PLAYING) {
     updateHUD();
     trackProgress();
+    // Reset watch tracker on resume/play (covers pause-unpause)
+    if (!watchCredited) startWatchTracker();
   }
 }
 
@@ -790,9 +890,38 @@ function loadCurrentVideo() {
   const v = playlist[currentIdx];
   ytPlayer.loadVideoById(v.id);
   updateHUD();
+  startWatchTracker();
+  // Check if we need to auto-grow the playlist
+  checkAutoGrow();
 }
 
 let progressTimer;
+let watchStartTime = 0;
+let watchCredited = false;
+
+function startWatchTracker() {
+  watchStartTime = Date.now();
+  watchCredited = false;
+}
+
+function checkWatchCredit() {
+  // Credit weight if watched 15+ seconds and not yet credited
+  if (!watchCredited && watchStartTime && (Date.now() - watchStartTime) >= 15000) {
+    watchCredited = true;
+    const v = playlist[currentIdx];
+    if (v) {
+      v.weight = (v.weight || 1) + 1;
+      debouncedSave();
+    }
+  }
+}
+
+let _saveTimer = null;
+function debouncedSave() {
+  if (_saveTimer) clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(() => pmSavePlaylist(), 3000);
+}
+
 function trackProgress() {
   clearInterval(progressTimer);
   progressTimer = setInterval(() => {
@@ -803,6 +932,8 @@ function trackProgress() {
       if (dur > 0) {
         document.getElementById('progressFill').style.width = `${(cur/dur)*100}%`;
       }
+      // Check watch credit every tick
+      checkWatchCredit();
     } catch(e) {}
   }, 500);
 }
@@ -1072,6 +1203,17 @@ function pmRemoveVideo(i) {
   pmSavePlaylist();
 }
 
+function storeSearchPrompt(prompt) {
+  if (!settings.prompts) settings.prompts = [];
+  // Avoid duplicates
+  if (!settings.prompts.includes(prompt)) {
+    settings.prompts.push(prompt);
+    // Keep last 50 prompts
+    if (settings.prompts.length > 50) settings.prompts = settings.prompts.slice(-50);
+    debouncedSave();
+  }
+}
+
 async function pmSavePlaylist() {
   if (!currentPlaylistName) return;
   try {
@@ -1110,6 +1252,8 @@ function pmSwitchTab(tab) {
 async function pmSearch() {
   const q = document.getElementById('pmSearchInput').value.trim();
   if (!q) return;
+  // Store search prompt for playlist growth
+  storeSearchPrompt(q);
   document.getElementById('pmResults').innerHTML = '<div class="pm-empty">Searching...</div>';
   try {
     const r = await fetch(`/api/youtube?endpoint=search&part=snippet&q=${encodeURIComponent(q)}&type=video&safeSearch=strict&videoEmbeddable=true&maxResults=10`);
@@ -1130,6 +1274,8 @@ async function pmSearch() {
 async function pmAiSearch() {
   const prompt = document.getElementById('pmAiInput').value.trim();
   if (!prompt) return;
+  // Store AI search prompt for playlist growth
+  storeSearchPrompt(prompt);
   document.getElementById('pmResults').innerHTML = '<div class="pm-empty">🤖 AI is thinking...</div>';
   try {
     // Get search queries from Claude
@@ -1194,6 +1340,9 @@ function renderPmResults() {
 function pmAddVideo(i) {
   const v = pmSearchResults[i];
   if (playlist.find(p => p.id === v.id)) return;
+  // Add with v2 fields
+  v.weight = v.weight || 1;
+  v.summary = v.summary || '';
   playlist.push(v);
   renderPmList();
   renderPmResults();
