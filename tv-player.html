@@ -422,11 +422,11 @@ async function apiNextVideo(taste, played, playlistFilters, sessionSize) {
 }
 
 // Fill LiamTV queue — balanced rotation + discovery
-async function apiFillQueue(history, avoidIds, playlistFilters, targetCount, minWatchCount, discoveryRatio) {
+async function apiFillQueue(history, avoidIds, playlistFilters, parentDirection, targetCount, minWatchCount, discoveryRatio) {
   const resp = await fetch('/api/videos/fill-queue', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ history, avoidIds, playlistFilters, targetCount, minWatchCount, discoveryRatio }),
+    body: JSON.stringify({ history, avoidIds, playlistFilters, parentDirection, targetCount, minWatchCount, discoveryRatio }),
   });
   if (!resp.ok) throw new Error(`Fill-queue API error ${resp.status}`);
   return resp.json(); // { videos[], allRotated, filtered }
@@ -811,7 +811,8 @@ async function liamTVFillQueue() {
     const result = await apiFillQueue(
       liamTVHistory,
       avoidIds,
-      settings.contentFilters || '',
+      settings.contentFilters  || '',
+      settings.parentDirection || '',
       needed,
       settings.minWatchCount  !== undefined ? settings.minWatchCount  : 3,
       settings.discoveryRatio !== undefined ? settings.discoveryRatio : 0.4,

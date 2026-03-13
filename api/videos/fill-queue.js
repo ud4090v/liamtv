@@ -27,6 +27,7 @@
  *   history         {Array}  [{id, title, channel, thumb, watchCount, skipCount, lastWatched}]
  *   avoidIds        {Array}  IDs to skip (already queued or played this session)
  *   playlistFilters {string} Per-playlist content rules
+ *   parentDirection {string} Parent's intent for discovery ("focus on math and counting skills")
  *   targetCount     {number} Videos to return (default 10)
  *   minWatchCount   {number} Rotation threshold — all must hit this before all-discovery (default 3)
  *   discoveryRatio  {number} Fraction of queue that is new content (default 0.4)
@@ -50,6 +51,7 @@ export default async function handler(req, res) {
     history = [],
     avoidIds = [],
     playlistFilters = '',
+    parentDirection = '',
     targetCount = 10,
     minWatchCount = 3,
     discoveryRatio = 0.4,
@@ -119,12 +121,17 @@ export default async function handler(req, res) {
 
       const filterHint = 'NEVER suggest reaction videos, fail compilations, prank videos, clickbait channels, unboxing hauls, Elsagate content, or overstimulation rapid-cut videos.';
 
-      // Ask Claude for diverse queries — explicitly instruct breadth over depth
+      // Build parent direction instruction (core steering force when set)
+      const directionBlock = parentDirection
+        ? `PARENT'S INTENT: "${parentDirection}"\nThis is the primary goal. Every query should find content that serves this intent while still matching the child's interests. Find videos where BOTH are true — the child will enjoy it AND it supports the parent's direction. Do not ignore either signal.`
+        : `No specific parent direction set — use broad, balanced discovery across educational and entertaining themes.`;
+
+      // Ask Claude for diverse queries — parent direction steers, taste informs
       const queriesRaw = await callClaude({
         model: ANTHROPIC_MODEL_SMART,
         maxTokens: 500,
-        system: `You find new YouTube content for a 3-year-old's curated stream. Generate ${Math.min(discoverySlots + 3, 8)} diverse search queries. IMPORTANT: prioritize breadth and variety over confirming recent preferences. Mix different themes, formats, and subject areas — educational content, music, nature, vehicles, animals, art, science, stories. Do not over-index on the most recent taste signals. Return ONLY a JSON array of search query strings. ${filterHint}`,
-        userMessage: `Child's watch history sample (for context only — use as inspiration, not as narrow targeting): ${tasteStr}\n\nGenerate diverse queries exploring DIFFERENT angles and themes. Return JSON array only.`,
+        system: `You find new YouTube content for a 3-year-old's curated stream. Generate ${Math.min(discoverySlots + 3, 8)} diverse search queries. IMPORTANT: prioritize breadth and variety — do not over-index on the most recent taste signals. Mix different angles and formats. ${filterHint}`,
+        userMessage: `${directionBlock}\n\nChild's watch history sample (use as inspiration for what they enjoy, steer it toward the parent's intent above): ${tasteStr}\n\nGenerate diverse search queries. Return JSON array only.`,
       });
 
       const queries = JSON.parse(queriesRaw.replace(/```json|```/g, '').trim());

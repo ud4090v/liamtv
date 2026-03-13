@@ -257,7 +257,14 @@ select option{background:#1c1c2e}
         </div>
         <div class="divider"></div>
         <div class="section-title" style="font-size:15px;margin-bottom:8px"><span>🎯</span> Curation <span style="font-size:12px;color:var(--muted);font-family:'DM Sans',sans-serif;font-weight:400">(Liam TV mode)</span></div>
-        <div class="hint" style="margin-bottom:14px">Controls how Liam TV balances replaying known videos vs discovering new ones. Goal: broad, balanced exposure — not a narrow rabbit hole.</div>
+        <div class="hint" style="margin-bottom:12px">Controls how Liam TV balances replaying known videos vs discovering new ones. Goal: broad, balanced exposure — not a narrow rabbit hole.</div>
+        <div class="field" style="margin-bottom:16px">
+          <label>🧭 Parent Direction</label>
+          <textarea id="parentDirection" oninput="saveSettings()"
+            placeholder="e.g. 'Focus on improving math and counting skills', 'Encourage curiosity about nature and animals', 'Mix of educational and pure fun — balance is fine', 'Introduce different world cultures and languages'"
+            style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;padding:12px 14px;outline:none;resize:vertical;min-height:80px;transition:border-color 0.2s;line-height:1.5"></textarea>
+          <span class="hint">Guides ALL new video discovery. Liam's preferences are respected, but searches are steered toward this goal. Leave blank for pure taste-based discovery.</span>
+        </div>
         <div class="settings-grid" style="margin-bottom:14px">
           <div class="field">
             <label>Min Watch Count</label>
@@ -338,7 +345,7 @@ async function apiVideoMeta(id) {
 let currentPlaylistName = null;
 let playlist = [];
 let settings = { channelName: '', playOrder: 'sequence', sleepTimer: 30, contentFilters: '',
-                 minWatchCount: 3, discoveryRatio: 0.4, skipThreshold: 3 };
+                 minWatchCount: 3, discoveryRatio: 0.4, skipThreshold: 3, parentDirection: '' };
 let selectedSearchResults = new Set();
 let searchResultCache = [];
 let syncing = false;
@@ -490,6 +497,7 @@ function applySettings() {
   document.getElementById('minWatchCount').value = settings.minWatchCount !== undefined ? settings.minWatchCount : 3;
   document.getElementById('discoveryRatio').value = settings.discoveryRatio !== undefined ? settings.discoveryRatio : 0.4;
   document.getElementById('skipThreshold').value = settings.skipThreshold !== undefined ? settings.skipThreshold : 3;
+  document.getElementById('parentDirection').value = settings.parentDirection || '';
 }
 function saveSettings() {
   settings.channelName = document.getElementById('channelName').value;
@@ -498,6 +506,7 @@ function saveSettings() {
   settings.minWatchCount = parseFloat(document.getElementById('minWatchCount').value) || 3;
   settings.discoveryRatio = Math.min(0.9, Math.max(0.1, parseFloat(document.getElementById('discoveryRatio').value) || 0.4));
   settings.skipThreshold = parseInt(document.getElementById('skipThreshold').value) || 3;
+  settings.parentDirection = document.getElementById('parentDirection').value.trim();
   document.getElementById('headerTitle').textContent = settings.channelName || currentPlaylistName;
   syncToServer();
 }
