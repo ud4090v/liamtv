@@ -374,6 +374,43 @@ let goodnightActive = false;
 let hudHideTimer = null;
 const TIMER_MINS = [10, 20, 30, 45, 60, 90];
 
+// ── GLOBAL CONTENT FILTER BASELINE (mirrors playlist-manager.html) ──
+const GLOBAL_CONTENT_FILTERS = `REACTION CONTENT: videos where the main content is a person or group watching and reacting to other videos; reaction channels; commentary channels whose primary format is reacting
+FAIL & PAIN CONTENT: fail compilations, people or animals getting hurt, painful accidents filmed for laughs, epic fail videos, blooper reels involving injury or humiliation
+CHALLENGE & PRANK VIDEOS: dangerous challenge trends, pranks played on people, hidden camera pranks, fake scare pranks, psychological manipulation framed as humor
+CLICKBAIT FORMATS: titles containing GONE WRONG, EXTREME, YOU WON'T BELIEVE, GONE SEXUAL, NOT CLICKBAIT, I'M LEAVING, WE NEED TO TALK, EXPOSED, SHOCKING; exaggerated shock/crying/screaming thumbnail faces
+DRAMA & BEEF: creator drama, responding to hate, calling out, feuds between influencers, emotional manipulation (I have something to tell you, I'm quitting YouTube)
+UNBOXING & HAUL CONTENT: unboxing luxury items, toy haul videos from influencer channels, mystery box videos, sponsor-disguised content presented as entertainment
+ELSAGATE-STYLE CONTENT: adults dressed as or imitating cartoon characters in live action skits not made by the IP owner; fast-cut nursery rhyme videos with violent or disturbing themes disguised as kids content
+OVERSTIMULATION CONTENT: videos with relentless rapid-fire cuts every 1-2 seconds, constant screaming/yelling presenters, extreme sound effects used to keep toddlers in a trance-like state; brain rot short-form content repurposed as long videos
+INFLUENCER PROMOTION: YouTubers promoting their own merch, channels that exist primarily to sell products to children
+TOP-N ALGORITHM BAIT: Top 10 scariest, Top 5 most dangerous, countdown format videos with no educational value
+COMMENT BAIT: videos ending with comment below if you want part 2, smash the like button or this happens
+ANIMALS IN DISTRESS: videos framing animal suffering, animal fights, or animals in dangerous situations as entertaining`;
+
+// Batch-screen video list against global + playlist filters (single Claude call)
+async function batchFilterVideos(videos, playlistFilters) {
+  if (!videos.length) return videos;
+  const filterBlock = GLOBAL_CONTENT_FILTERS + (playlistFilters ? '\n\nADDITIONAL RULES:\n' + playlistFilters : '');
+  try {
+    const list = videos.map((v, i) => `${i+1}. [${v.channel}] ${v.title}`).join('\n');
+    const resp = await fetch('/api/anthropic', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-20250514',
+        max_tokens: 200,
+        system: 'You screen YouTube videos for a parent protecting a 3-year-old. Given a numbered list of videos and content filter rules, return ONLY a JSON array of the numbers (1-based) that should be BLOCKED. Example: [2,5]. If none blocked, return []. No other text.',
+        messages: [{ role: 'user', content: filterBlock + '\n\nVideos:\n' + list + '\n\nWhich numbers are blocked? Return JSON array only.' }]
+      })
+    });
+    if (!resp.ok) return videos;
+    const data = await resp.json();
+    const blocked = new Set(JSON.parse(data.content[0].text.replace(/```json|```/g,'').trim()).map(n => n - 1));
+    return videos.filter((_, i) => !blocked.has(i));
+  } catch(e) { return videos; } // fail open
+}
+
 // Demo playlist (popular kids-safe monster truck content)
 const DEMO_PLAYLIST = [];
 
@@ -578,7 +615,7 @@ async function checkAutoGrow() {
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 300,
-        system: 'You generate YouTube search queries to grow a kids playlist. Based on the playlist context (search history, watched videos, playlist name), generate 5 diverse search queries to find MORE similar videos. Return ONLY a JSON array of search query strings. Keep all content appropriate for a 3-year-old. Vary the queries — mix specific titles, channels, compilations, and related topics.',
+        system: 'You generate YouTube search queries to grow a kids playlist. Based on the playlist context, generate 5 diverse search queries to find MORE similar videos. Return ONLY a JSON array of search query strings. Keep all content appropriate for a 3-year-old. Vary the queries. NEVER suggest reaction videos, fail compilations, prank videos, clickbait channels, unboxing hauls, Elsagate content, or overstimulation rapid-cut videos.',
         messages: [{ role: 'user', content: context }]
       })
     });
@@ -609,10 +646,13 @@ async function checkAutoGrow() {
       } catch(e) {}
     }
     
-    if (newVideos.length > 0) {
+    // Screen new videos against content filters before adding
+    const filteredNewVideos = await batchFilterVideos(newVideos, settings.contentFilters || '');
+
+    if (filteredNewVideos.length > 0) {
       // Generate summaries for new videos
       try {
-        const titles = newVideos.map(v => v.title).join(', ');
+        const titles = filteredNewVideos.map(v => v.title).join(', ');
         const sumResp = await fetch('/api/anthropic', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -625,12 +665,12 @@ async function checkAutoGrow() {
         });
         const sumData = await sumResp.json();
         const summaries = JSON.parse(sumData.content[0].text.replace(/```json|```/g, '').trim());
-        newVideos.forEach((v, i) => { if (summaries[i]) v.summary = summaries[i]; });
+        filteredNewVideos.forEach((v, i) => { if (summaries[i]) v.summary = summaries[i]; });
       } catch(e) {}
       
-      playlist.push(...newVideos);
+      playlist.push(...filteredNewVideos);
       pmSavePlaylist();
-      console.log(`Auto-grow: added ${newVideos.length} videos to ${currentPlaylistName}`);
+      console.log(`Auto-grow: added ${filteredNewVideos.length} videos to ${currentPlaylistName} (${newVideos.length - filteredNewVideos.length} filtered out)`);
     }
   } catch(e) {
     console.warn('Auto-grow failed:', e);
@@ -749,7 +789,7 @@ async function liamTVNext() {
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 150,
-        system: 'You pick YouTube search queries to find kid-safe videos similar to the ones listed. Return ONLY a JSON object: {"query": "search query", "reason": "1-2 word reason"}. Make each query specific and varied — try different angles: compilations, specific channels, related topics, specific shows. Keep it fresh and age-appropriate for a 3-year-old.',
+        system: 'You pick YouTube search queries to find kid-safe videos similar to the ones listed. Return ONLY a JSON object: {"query": "search query", "reason": "1-2 word reason"}. Make each query specific and varied. Keep it fresh and age-appropriate for a 3-year-old. NEVER suggest reaction videos, fail compilations, prank videos, clickbait channels, unboxing hauls, Elsagate content, or overstimulation rapid-cut videos.',
         messages: [{ role: 'user', content: `Kid watches: ${tasteStr}\n\nAlready played ${liamTVPlayed.size} videos this session. Find something ${liamTVPlayed.size === 0 ? 'great to start with' : 'fresh and different'}.` }]
       })
     });
@@ -760,23 +800,23 @@ async function liamTVNext() {
     const ytResp = await fetch(`/api/youtube?endpoint=search&part=snippet&q=${encodeURIComponent(result.query)}&type=video&safeSearch=strict&videoEmbeddable=true&maxResults=10`);
     const ytData = await ytResp.json();
     
-    // Find a video we haven't played
-    let picked = null;
-    for (const item of (ytData.items || [])) {
-      const id = item.id.videoId;
-      if (!liamTVPlayed.has(id)) {
-        picked = {
-          id,
-          title: item.snippet.title,
-          channel: item.snippet.channelTitle,
-          thumb: item.snippet.thumbnails?.medium?.url || `https://img.youtube.com/vi/${id}/mqdefault.jpg`
-        };
-        break;
-      }
-    }
-    
+    // Build candidates (not already played)
+    const candidates = (ytData.items || [])
+      .filter(item => !liamTVPlayed.has(item.id.videoId))
+      .map(item => ({
+        id: item.id.videoId,
+        title: item.snippet.title,
+        channel: item.snippet.channelTitle,
+        thumb: item.snippet.thumbnails?.medium?.url || `https://img.youtube.com/vi/${item.id.videoId}/mqdefault.jpg`
+      }));
+
+    // Screen candidates against content filters
+    const safe = await batchFilterVideos(candidates, settings.contentFilters || '');
+
+    let picked = safe[0] || null;
+
     if (!picked) {
-      // All results already played — try again with different query
+      // All results blocked or already played — try again with different query
       liamTVLoading = false;
       if (liamTVPlayed.size > 50) liamTVPlayed.clear(); // Reset after many plays
       return liamTVNext();
@@ -1285,7 +1325,7 @@ async function pmAiSearch() {
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 500,
-        system: 'You generate YouTube search queries for finding child-safe videos. Return ONLY a JSON array of 4-6 short search query strings, no other text or markdown.',
+        system: 'You generate YouTube search queries for finding child-safe videos. Return ONLY a JSON array of 4-6 short search query strings, no other text or markdown. NEVER suggest reaction videos, fail compilations, prank videos, clickbait channels, unboxing hauls, Elsagate content, or overstimulation rapid-cut videos.',
         messages: [{ role: 'user', content: `Generate YouTube search queries for: "${prompt}". Focus on content appropriate for a 3-year-old. Return JSON array only.` }]
       })
     });
@@ -1309,8 +1349,13 @@ async function pmAiSearch() {
         }
       } catch(e) {}
     }
-    pmSearchResults = allResults;
+    // Screen results against content filters
+    document.getElementById('pmResults').innerHTML = '<div class="pm-empty">🛡 Screening results...</div>';
+    const filtered = await batchFilterVideos(allResults, settings.contentFilters || '');
+    const removed = allResults.length - filtered.length;
+    pmSearchResults = filtered;
     pmResultIdx = 0;
+    if (removed > 0) console.log(`In-player AI search: ${removed} result(s) filtered out`);
     renderPmResults();
   } catch(e) {
     document.getElementById('pmResults').innerHTML = '<div class="pm-empty">AI search failed</div>';
