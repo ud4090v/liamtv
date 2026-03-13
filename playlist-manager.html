@@ -25,12 +25,13 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;padding-bottom:60px}
 
-/* ── HEADER ── */
 header{background:rgba(11,11,20,0.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
 .logo{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;background:linear-gradient(135deg,var(--orange),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.header-actions{display:flex;gap:10px}
+.header-left{display:flex;align-items:center;gap:10px}
+.header-actions{display:flex;gap:10px;align-items:center}
+.back-btn{background:none;border:none;color:var(--muted);font-size:26px;cursor:pointer;padding:2px 6px;line-height:1;transition:color 0.15s}
+.back-btn:hover{color:var(--text)}
 
-/* ── BUTTONS ── */
 .btn{font-family:'DM Sans',sans-serif;font-weight:700;font-size:14px;border:none;border-radius:10px;padding:10px 18px;cursor:pointer;transition:all 0.15s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 .btn:active{transform:scale(0.95)}
 .btn-primary{background:linear-gradient(135deg,var(--orange),#e03dac);color:white;box-shadow:0 4px 20px rgba(255,107,53,0.35)}
@@ -45,38 +46,55 @@ header{background:rgba(11,11,20,0.95);backdrop-filter:blur(20px);border-bottom:1
 .btn-icon{padding:8px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--muted)}
 .btn-icon:hover{color:var(--text);border-color:var(--border-bright)}
 
-/* ── LAYOUT ── */
 .container{max-width:900px;margin:0 auto;padding:24px 20px}
 .section{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:24px;margin-bottom:20px}
 .section-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:10px}
 .section-title span{font-size:22px}
 
-/* ── SETTINGS GRID ── */
+/* HOME */
+.playlists-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.playlist-card{background:var(--surface2);border:2px solid var(--border);border-radius:16px;overflow:hidden;cursor:pointer;transition:all 0.2s;position:relative}
+.playlist-card:hover{border-color:var(--orange);transform:translateY(-2px);box-shadow:0 8px 24px rgba(255,107,53,0.2)}
+.playlist-card-thumb{width:100%;aspect-ratio:16/9;object-fit:cover;background:#111;display:block}
+.playlist-card-placeholder{width:100%;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;font-size:36px;background:var(--surface)}
+.playlist-card-info{padding:12px 14px}
+.playlist-card-name{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.playlist-card-count{font-size:12px;color:var(--muted);margin-top:3px}
+.playlist-card-del{position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.75);border:none;color:#ff8080;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px;display:none;align-items:center;justify-content:center;line-height:1}
+.playlist-card:hover .playlist-card-del{display:flex}
+.playlist-card-del:hover{background:rgba(255,60,60,0.45)}
+
+.new-card{background:var(--surface2);border:2px dashed var(--border-bright);border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s;padding:32px 16px;gap:10px;color:var(--muted);font-weight:700;font-size:14px;text-align:center;min-height:140px}
+.new-card:hover{border-color:var(--orange);color:var(--orange);background:rgba(255,107,53,0.04)}
+.new-card .plus{font-size:32px;line-height:1}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.72);backdrop-filter:blur(8px);z-index:500;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border-bright);border-radius:20px;padding:28px;width:100%;max-width:400px}
+.modal h2{font-family:'Syne',sans-serif;font-size:20px;margin-bottom:20px}
+.modal-field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.modal-field label{font-size:13px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:0.5px}
+.modal-field input{background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;padding:12px 14px;outline:none;width:100%;transition:border-color 0.2s}
+.modal-field input:focus{border-color:var(--orange)}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+
+/* EDITOR */
 .settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 @media(max-width:600px){.settings-grid{grid-template-columns:1fr}}
 .field{display:flex;flex-direction:column;gap:6px}
 .field label{font-size:13px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:0.5px}
-.field input,.field select,.field textarea{background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;padding:12px 14px;outline:none;transition:border-color 0.2s;width:100%}
-.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--orange)}
-.field textarea{resize:vertical;min-height:80px}
+.field input,.field select{background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;padding:12px 14px;outline:none;transition:border-color 0.2s;width:100%}
+.field input:focus,.field select:focus{border-color:var(--orange)}
 select option{background:#1c1c2e}
 
-/* ── URL INPUT ── */
 .url-row{display:flex;gap:10px;margin-bottom:16px}
 .url-row input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:15px;padding:12px 16px;outline:none;transition:border-color 0.2s}
 .url-row input:focus{border-color:var(--orange)}
 
-/* ── AI SECTION ── */
-.ai-row{display:flex;gap:10px;margin-bottom:14px}
-.ai-row textarea{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:15px;padding:12px 16px;outline:none;resize:none;height:80px;transition:border-color 0.2s;font-family:'DM Sans',sans-serif}
+.ai-row textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:15px;padding:12px 16px;outline:none;resize:none;height:80px;transition:border-color 0.2s;font-family:'DM Sans',sans-serif;margin-bottom:14px}
 .ai-row textarea:focus{border-color:var(--blue)}
-.ai-key-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
-@media(max-width:580px){.ai-key-row{grid-template-columns:1fr}}
-.key-input{background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 14px;outline:none;width:100%;transition:border-color 0.2s;font-family:'DM Sans',sans-serif}
-.key-input:focus{border-color:var(--blue)}
-.key-label{font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;text-transform:uppercase;letter-spacing:0.5px}
 
-/* ── SEARCH RESULTS ── */
 .search-results{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:16px}
 .result-card{background:var(--surface2);border:2px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:all 0.2s}
 .result-card:hover{border-color:var(--orange);transform:translateY(-2px)}
@@ -88,7 +106,6 @@ select option{background:#1c1c2e}
 .result-check{position:absolute;top:8px;right:8px;background:var(--green);color:#001a0f;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
 .result-card-wrap{position:relative}
 
-/* ── PLAYLIST ── */
 .playlist-empty{text-align:center;padding:40px;color:var(--muted)}
 .playlist-empty .empty-icon{font-size:48px;margin-bottom:12px}
 .video-item{display:flex;align-items:center;gap:12px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:10px;margin-bottom:8px;transition:border-color 0.2s}
@@ -100,299 +117,403 @@ select option{background:#1c1c2e}
 .video-actions{display:flex;gap:6px;flex-shrink:0}
 .drag-handle{color:var(--muted);cursor:grab;padding:4px;font-size:18px;user-select:none}
 
-/* ── TIMER PRESETS ── */
 .timer-pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .timer-pill{background:var(--surface2);border:1px solid var(--border);border-radius:50px;padding:6px 16px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;color:var(--muted)}
 .timer-pill.active{background:rgba(255,107,53,0.15);border-color:var(--orange);color:var(--orange)}
 
-/* ── EXPORT ── */
-.export-box{background:var(--surface2);border:1px solid var(--border-bright);border-radius:12px;padding:20px;margin-top:20px}
-.export-url{word-break:break-all;font-family:monospace;font-size:12px;color:var(--blue);background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.15);border-radius:8px;padding:12px;margin:12px 0;max-height:80px;overflow-y:auto}
-.export-actions{display:flex;gap:10px;flex-wrap:wrap}
-.qr-placeholder{width:120px;height:120px;background:white;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#333;text-align:center;padding:8px}
-
-/* ── STATUS / TOAST ── */
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:#1e1e30;border:1px solid var(--border-bright);border-radius:12px;padding:12px 24px;font-size:14px;font-weight:600;z-index:999;transition:transform 0.3s;white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,0.5)}
-.toast.show{transform:translateX(-50%) translateY(0)}
-.toast.success{border-color:rgba(0,232,122,0.4);color:var(--green)}
-.toast.error{border-color:rgba(255,100,100,0.4);color:#ff8080}
-
-/* ── LOADING ── */
-.spinner{display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,0.2);border-top-color:var(--orange);border-radius:50%;animation:spin 0.7s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-.loading-row{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:14px;padding:12px 0}
-
-/* ── BADGE ── */
-.badge{display:inline-flex;align-items:center;gap:4px;background:rgba(255,107,53,0.15);color:var(--orange);border:1px solid rgba(255,107,53,0.25);border-radius:50px;padding:3px 10px;font-size:12px;font-weight:700}
-
-/* ── TABS ── */
 .tabs{display:flex;gap:4px;background:var(--surface2);border-radius:12px;padding:4px;margin-bottom:20px}
 .tab{flex:1;text-align:center;padding:10px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;transition:all 0.2s;color:var(--muted)}
 .tab.active{background:var(--surface);color:var(--text);box-shadow:0 2px 8px rgba(0,0,0,0.3)}
 
+.count-badge{background:rgba(255,107,53,0.2);color:var(--orange);border-radius:50px;padding:2px 8px;font-size:13px;font-weight:700}
 .divider{height:1px;background:var(--border);margin:20px 0}
 .hint{font-size:12px;color:var(--muted);line-height:1.5}
-.count-badge{background:rgba(255,107,53,0.2);color:var(--orange);border-radius:50px;padding:2px 8px;font-size:13px;font-weight:700}
+
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,0.2);border-top-color:var(--orange);border-radius:50%;animation:spin 0.7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-row{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:14px;padding:12px 0}
+.page-loading{text-align:center;padding:60px 20px;color:var(--muted)}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:#1e1e30;border:1px solid var(--border-bright);border-radius:12px;padding:12px 24px;font-size:14px;font-weight:600;z-index:999;transition:transform 0.3s;white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,0.5)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.success{border-color:rgba(0,232,122,0.4);color:var(--green)}
+.toast.error{border-color:rgba(255,100,100,0.4);color:#ff8080}
 </style>
 </head>
 <body>
 
 <header>
-  <div class="logo">🚛 Liam TV</div>
-  <div class="header-actions">
-    <button class="btn btn-secondary btn-sm" onclick="switchTab('settings')">⚙️ Settings</button>
+  <div class="header-left">
+    <button class="back-btn" id="backBtn" onclick="goHome()" style="display:none">&#8592;</button>
+    <div class="logo" id="headerTitle">🚛 Liam TV</div>
   </div>
+  <div class="header-actions" id="headerActions"></div>
 </header>
 
-<div class="container">
-
-  <!-- TABS -->
-  <div class="tabs">
-    <div class="tab active" onclick="switchTab('manual')" id="tab-manual">📋 My Playlist</div>
-    <div class="tab" onclick="switchTab('ai')" id="tab-ai">🤖 AI Search</div>
-    <div class="tab" onclick="switchTab('settings')" id="tab-settings">⚙️ Settings</div>
-
-  </div>
-
-  <!-- ── MANUAL TAB ── -->
-  <div id="panel-manual">
+<!-- ═══ HOME VIEW ═══ -->
+<div id="view-home">
+  <div class="container">
     <div class="section">
-      <div class="section-title"><span>📋</span> Playlist <span class="count-badge" id="videoCount">0</span></div>
-      <div class="url-row">
-        <input type="text" id="urlInput" placeholder="Paste YouTube URL or video ID..." onkeydown="if(event.key==='Enter')addUrl()"/>
-        <button class="btn btn-primary" onclick="addUrl()">+ Add</button>
-      </div>
-      <div class="hint" style="margin-bottom:16px">Supports: youtube.com/watch?v=..., youtu.be/..., or just the video ID</div>
-      <div id="playlistEl">
-        <div class="playlist-empty">
-          <div class="empty-icon">🚛</div>
-          <div>No videos yet! Add YouTube URLs above<br/>or use AI Search to find content.</div>
-        </div>
+      <div class="section-title"><span>📋</span> Playlists</div>
+      <div id="playlistsGrid" class="playlists-grid">
+        <div class="page-loading"><div class="spinner" style="width:32px;height:32px;border-width:3px;margin:0 auto 16px"></div>Loading...</div>
       </div>
     </div>
   </div>
-
-  <!-- ── AI TAB ── -->
-  <div id="panel-ai" style="display:none">
-    <div class="section">
-      <div class="section-title"><span>🤖</span> AI Playlist Generator</div>
-      <div class="divider"></div>
-      <div class="ai-row">
-        <textarea id="aiPrompt" placeholder="Describe what you want, e.g: 'Monster truck stunts for toddlers', 'Lego car builds', 'Baby Shark style songs', 'BeamNG crash videos'..."></textarea>
-      </div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <button class="btn btn-green" onclick="aiSearch()" id="aiSearchBtn">🔍 Find Videos with AI</button>
-        <div style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px">
-          Max results:
-          <select id="maxResults" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:8px;font-size:13px">
-            <option value="6">6</option>
-            <option value="10" selected>10</option>
-            <option value="20">20</option>
-          </select>
-        </div>
-      </div>
-      <div id="aiStatus"></div>
-      <div id="searchResults" class="search-results"></div>
-      <div id="addSelectedRow" style="display:none;margin-top:16px">
-        <button class="btn btn-primary" onclick="addSelectedToPlaylist()">+ Add Selected to Playlist (<span id="selectedCount">0</span>)</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── SETTINGS TAB ── -->
-  <div id="panel-settings" style="display:none">
-    <div class="section">
-      <div class="section-title"><span>⚙️</span> Channel Settings</div>
-      <div class="settings-grid">
-        <div class="field">
-          <label>Channel Name</label>
-          <input type="text" id="channelName" value="Liam TV 🚛" oninput="saveSettings()"/>
-        </div>
-        <div class="field">
-          <label>Playback Order</label>
-          <select id="playOrder" onchange="saveSettings()">
-            <option value="sequence">In Order</option>
-            <option value="shuffle">Shuffle</option>
-            <option value="repeat1">Repeat One</option>
-          </select>
-        </div>
-      </div>
-      <div class="divider"></div>
-      <div class="section-title" style="font-size:15px;margin-bottom:12px"><span>🌙</span> Default Sleep Timer</div>
-      <div class="hint" style="margin-bottom:12px">Screen and sound gradually fade out over the last 5 minutes</div>
-      <div class="timer-pills" id="timerPills">
-        <div class="timer-pill" data-min="0" onclick="setTimer(0)">Off</div>
-        <div class="timer-pill" data-min="15" onclick="setTimer(15)">15 min</div>
-        <div class="timer-pill active" data-min="30" onclick="setTimer(30)">30 min</div>
-        <div class="timer-pill" data-min="45" onclick="setTimer(45)">45 min</div>
-        <div class="timer-pill" data-min="60" onclick="setTimer(60)">1 hour</div>
-        <div class="timer-pill" data-min="90" onclick="setTimer(90)">90 min</div>
-      </div>
-    </div>
-  </div>
-
-
-
 </div>
 
-<!-- Toast -->
+<!-- ═══ EDITOR VIEW ═══ -->
+<div id="view-editor" style="display:none">
+  <div class="container">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('manual')" id="tab-manual">📋 Videos</div>
+      <div class="tab" onclick="switchTab('ai')" id="tab-ai">🤖 AI Search</div>
+      <div class="tab" onclick="switchTab('settings')" id="tab-settings">⚙️ Settings</div>
+    </div>
+
+    <!-- VIDEOS TAB -->
+    <div id="panel-manual">
+      <div class="section">
+        <div class="section-title"><span>📋</span> Playlist <span class="count-badge" id="videoCount">0</span></div>
+        <div class="url-row">
+          <input type="text" id="urlInput" placeholder="Paste YouTube URL or video ID..." onkeydown="if(event.key==='Enter')addUrl()"/>
+          <button class="btn btn-primary" onclick="addUrl()">+ Add</button>
+        </div>
+        <div class="hint" style="margin-bottom:16px">Supports: youtube.com/watch?v=..., youtu.be/..., or just the video ID</div>
+        <div id="playlistEl">
+          <div class="playlist-empty"><div class="empty-icon">🚛</div><div>No videos yet!</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI TAB -->
+    <div id="panel-ai" style="display:none">
+      <div class="section">
+        <div class="section-title"><span>🤖</span> AI Playlist Generator</div>
+        <div class="divider"></div>
+        <div class="ai-row">
+          <textarea id="aiPrompt" placeholder="Describe what you want, e.g: 'Monster truck stunts for toddlers', 'Lego car builds'..."></textarea>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-green" onclick="aiSearch()" id="aiSearchBtn">🔍 Find Videos with AI</button>
+          <div style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px">
+            Max:
+            <select id="maxResults" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:8px;font-size:13px">
+              <option value="6">6</option>
+              <option value="10" selected>10</option>
+              <option value="20">20</option>
+            </select>
+          </div>
+        </div>
+        <div id="aiStatus"></div>
+        <div id="searchResults" class="search-results"></div>
+        <div id="addSelectedRow" style="display:none;margin-top:16px">
+          <button class="btn btn-primary" onclick="addSelectedToPlaylist()">+ Add Selected (<span id="selectedCount">0</span>)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS TAB -->
+    <div id="panel-settings" style="display:none">
+      <div class="section">
+        <div class="section-title"><span>⚙️</span> Playlist Settings</div>
+        <div class="settings-grid">
+          <div class="field">
+            <label>Display Name</label>
+            <input type="text" id="channelName" placeholder="e.g. Monster Trucks" oninput="saveSettings()"/>
+          </div>
+          <div class="field">
+            <label>Playback Order</label>
+            <select id="playOrder" onchange="saveSettings()">
+              <option value="sequence">In Order</option>
+              <option value="shuffle">Shuffle</option>
+              <option value="repeat1">Repeat One</option>
+            </select>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="section-title" style="font-size:15px;margin-bottom:12px"><span>🌙</span> Default Sleep Timer</div>
+        <div class="hint" style="margin-bottom:12px">Screen fades over last 5 minutes</div>
+        <div class="timer-pills" id="timerPills">
+          <div class="timer-pill" data-min="0" onclick="setTimer(0)">Off</div>
+          <div class="timer-pill" data-min="15" onclick="setTimer(15)">15 min</div>
+          <div class="timer-pill active" data-min="30" onclick="setTimer(30)">30 min</div>
+          <div class="timer-pill" data-min="45" onclick="setTimer(45)">45 min</div>
+          <div class="timer-pill" data-min="60" onclick="setTimer(60)">1 hour</div>
+          <div class="timer-pill" data-min="90" onclick="setTimer(90)">90 min</div>
+        </div>
+        <div class="divider"></div>
+        <button class="btn btn-danger" onclick="confirmDeletePlaylist()">🗑 Delete This Playlist</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- NEW PLAYLIST MODAL -->
+<div class="modal-overlay" id="newPlaylistModal">
+  <div class="modal">
+    <h2>➕ New Playlist</h2>
+    <div class="modal-field">
+      <label>Playlist ID</label>
+      <input type="text" id="newPlaylistName" placeholder="e.g. monster-trucks" maxlength="40"
+        onkeydown="if(event.key==='Enter')createPlaylist()"
+        oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_-]/g,'-').replace(/-{2,}/g,'-')"/>
+    </div>
+    <div class="hint">Lowercase letters, numbers, hyphens only.</div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeNewPlaylistModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="createPlaylist()">Create</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
-// ── STATE ──
+// STATE
+let currentPlaylistName = null;
 let playlist = [];
-let settings = {
-  channelName: 'Liam TV 🚛',
-  playOrder: 'sequence',
-  sleepTimer: 30
-};
+let settings = { channelName: '', playOrder: 'sequence', sleepTimer: 30 };
 let selectedSearchResults = new Set();
 let searchResultCache = [];
-let activeTab = 'manual';
 let syncing = false;
 
-// ── INIT ──
-window.addEventListener('load', async () => {
-  renderPlaylist();
-  loadKeys();
-  applySettings();
-  await loadFromServer();
-  setTimer(settings.sleepTimer, true);
-});
+// INIT
+window.addEventListener('load', loadHome);
 
-function loadKeys() { /* keys stored server-side as env vars */ }
-function saveKeys() { /* keys stored server-side as env vars */ }
+// ─── HOME ───
+async function loadHome() {
+  showView('home');
+  document.getElementById('backBtn').style.display = 'none';
+  document.getElementById('headerTitle').textContent = '🚛 Liam TV';
+  document.getElementById('headerActions').innerHTML = '';
+  currentPlaylistName = null;
 
-async function loadFromServer() {
+  const grid = document.getElementById('playlistsGrid');
+  grid.innerHTML = '<div class="page-loading"><div class="spinner" style="width:32px;height:32px;border-width:3px;margin:0 auto 16px"></div>Loading...</div>';
+
+  let playlists = [];
   try {
-    const r = await fetch('/api/playlist');
+    const r = await fetch('/api/playlists');
     const data = await r.json();
-    if (data.videos && data.videos.length > 0) {
-      playlist = data.videos;
-      if (data.settings) Object.assign(settings, data.settings);
-      applySettings();
-      renderPlaylist();
-      setTimer(settings.sleepTimer, true);
-      showToast(`Loaded ${playlist.length} videos from server`, 'success');
-    }
-  } catch(e) { console.warn('Failed to load from server:', e); }
+    playlists = (data.playlists || []).filter(p => !p.name.startsWith('_'));
+  } catch(e) {
+    showToast('Failed to load playlists', 'error');
+  }
+
+  let html = playlists.map(p => `
+    <div class="playlist-card" onclick="openPlaylist('${escAttr(p.name)}')">
+      ${p.thumb
+        ? `<img class="playlist-card-thumb" src="${escAttr(p.thumb)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/><div class="playlist-card-placeholder" style="display:none">🎬</div>`
+        : `<div class="playlist-card-placeholder">🎬</div>`}
+      <div class="playlist-card-info">
+        <div class="playlist-card-name">${escHtml(p.title || p.name)}</div>
+        <div class="playlist-card-count">${p.videoCount} video${p.videoCount !== 1 ? 's' : ''}</div>
+      </div>
+      <button class="playlist-card-del" onclick="event.stopPropagation();deletePlaylistByName('${escAttr(p.name)}')" title="Delete">✕</button>
+    </div>`).join('');
+
+  html += `<div class="new-card" onclick="showNewPlaylistModal()"><div class="plus">＋</div><div>New Playlist</div></div>`;
+  grid.innerHTML = html;
 }
 
-async function syncToServer() {
-  if (syncing) return;
-  syncing = true;
+function goHome() { loadHome(); }
+
+// ─── OPEN PLAYLIST ───
+async function openPlaylist(name) {
+  currentPlaylistName = name;
+  playlist = [];
+  settings = { channelName: name, playOrder: 'sequence', sleepTimer: 30 };
+  selectedSearchResults.clear();
+  searchResultCache = [];
+
+  showView('editor');
+  switchTab('manual');
+  document.getElementById('backBtn').style.display = 'block';
+  document.getElementById('headerActions').innerHTML = `<button class="btn btn-secondary btn-sm" onclick="switchTab('settings')">⚙️ Settings</button>`;
+  document.getElementById('playlistEl').innerHTML = '<div class="loading-row"><div class="spinner"></div> Loading...</div>';
+  document.getElementById('headerTitle').textContent = '...';
+
   try {
-    await fetch('/api/playlist', {
+    const r = await fetch('/api/playlist?name=' + encodeURIComponent(name));
+    const data = await r.json();
+    playlist = data.videos || [];
+    if (data.settings) Object.assign(settings, data.settings);
+  } catch(e) {
+    showToast('Failed to load playlist', 'error');
+  }
+
+  document.getElementById('headerTitle').textContent = settings.channelName || name;
+  applySettings();
+  renderPlaylist();
+  setTimer(settings.sleepTimer, true);
+  showToast('Loaded ' + playlist.length + ' video' + (playlist.length !== 1 ? 's' : ''), 'success');
+}
+
+// ─── NEW PLAYLIST ───
+function showNewPlaylistModal() {
+  document.getElementById('newPlaylistName').value = '';
+  document.getElementById('newPlaylistModal').classList.add('open');
+  setTimeout(() => document.getElementById('newPlaylistName').focus(), 80);
+}
+function closeNewPlaylistModal() {
+  document.getElementById('newPlaylistModal').classList.remove('open');
+}
+async function createPlaylist() {
+  const val = document.getElementById('newPlaylistName').value.trim();
+  if (!val) { showToast('Enter a name', 'error'); return; }
+  const name = val.replace(/[^a-zA-Z0-9_-]/g,'-').replace(/-{2,}/g,'-').replace(/^-|-$/g,'');
+  if (!name) { showToast('Invalid name', 'error'); return; }
+  closeNewPlaylistModal();
+  try {
+    await fetch('/api/playlist?name=' + encodeURIComponent(name), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ videos: playlist, settings })
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ videos: [], settings: { channelName: name, playOrder: 'sequence', sleepTimer: 30 } })
     });
-  } catch(e) { console.warn('Failed to sync to server:', e); }
-  syncing = false;
+    showToast('Created "' + name + '"', 'success');
+    await openPlaylist(name);
+  } catch(e) {
+    showToast('Failed to create playlist', 'error');
+  }
 }
 
+// ─── DELETE PLAYLIST ───
+async function deletePlaylistByName(name) {
+  if (!confirm('Delete playlist "' + name + '"? This cannot be undone.')) return;
+  try {
+    await fetch('/api/playlist?name=' + encodeURIComponent(name), { method: 'DELETE' });
+    showToast('Deleted "' + name + '"', 'success');
+    await loadHome();
+  } catch(e) {
+    showToast('Failed to delete', 'error');
+  }
+}
+async function confirmDeletePlaylist() {
+  if (!currentPlaylistName) return;
+  if (!confirm('Delete playlist "' + currentPlaylistName + '"? This cannot be undone.')) return;
+  try {
+    await fetch('/api/playlist?name=' + encodeURIComponent(currentPlaylistName), { method: 'DELETE' });
+    showToast('Deleted', 'success');
+    await loadHome();
+  } catch(e) {
+    showToast('Failed to delete', 'error');
+  }
+}
+
+// ─── VIEW SWITCHER ───
+function showView(v) {
+  document.getElementById('view-home').style.display = v === 'home' ? 'block' : 'none';
+  document.getElementById('view-editor').style.display = v === 'editor' ? 'block' : 'none';
+}
+
+// ─── EDITOR TABS ───
+function switchTab(tab) {
+  ['manual','ai','settings'].forEach(t => {
+    document.getElementById('panel-' + t).style.display = 'none';
+    document.getElementById('tab-' + t).classList.remove('active');
+  });
+  document.getElementById('panel-' + tab).style.display = 'block';
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
+// ─── SETTINGS ───
 function applySettings() {
-  document.getElementById('channelName').value = settings.channelName;
-  document.getElementById('playOrder').value = settings.playOrder;
+  document.getElementById('channelName').value = settings.channelName || '';
+  document.getElementById('playOrder').value = settings.playOrder || 'sequence';
 }
-
 function saveSettings() {
   settings.channelName = document.getElementById('channelName').value;
   settings.playOrder = document.getElementById('playOrder').value;
-  localStorage.setItem('mtv_settings', JSON.stringify(settings));
+  document.getElementById('headerTitle').textContent = settings.channelName || currentPlaylistName;
   syncToServer();
 }
 
-// ── TABS ──
-function switchTab(tab) {
-  ['manual','ai','settings'].forEach(t => {
-    document.getElementById(`panel-${t}`).style.display = 'none';
-    document.getElementById(`tab-${t}`).classList.remove('active');
-  });
-  document.getElementById(`panel-${tab}`).style.display = 'block';
-  document.getElementById(`tab-${tab}`).classList.add('active');
-  activeTab = tab;
-}
-
-// ── TIMER ──
+// ─── TIMER ───
 function setTimer(min, silent) {
   settings.sleepTimer = min;
   document.querySelectorAll('.timer-pill').forEach(p => {
     p.classList.toggle('active', parseInt(p.dataset.min) === min);
   });
-  localStorage.setItem('mtv_settings', JSON.stringify(settings));
-  syncToServer();
-  if (!silent) showToast(min === 0 ? 'Sleep timer off' : `Sleep timer: ${min} min`, 'success');
+  if (!silent) syncToServer();
+  if (!silent) showToast(min === 0 ? 'Sleep timer off' : 'Sleep timer: ' + min + ' min', 'success');
 }
 
-// ── URL PARSING ──
+// ─── SYNC ───
+async function syncToServer() {
+  if (!currentPlaylistName || syncing) return;
+  syncing = true;
+  try {
+    await fetch('/api/playlist?name=' + encodeURIComponent(currentPlaylistName), {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ videos: playlist, settings })
+    });
+  } catch(e) { console.warn('Sync failed:', e); }
+  syncing = false;
+}
+
+// ─── URL PARSING ───
 function extractVideoId(input) {
   input = input.trim();
-  // Direct ID (11 chars)
   if (/^[a-zA-Z0-9_-]{11}$/.test(input)) return input;
-  // Various YouTube URL formats
   const patterns = [
     /[?&]v=([a-zA-Z0-9_-]{11})/,
     /youtu\.be\/([a-zA-Z0-9_-]{11})/,
     /embed\/([a-zA-Z0-9_-]{11})/,
     /shorts\/([a-zA-Z0-9_-]{11})/,
   ];
-  for (const p of patterns) {
-    const m = input.match(p);
-    if (m) return m[1];
-  }
+  for (const p of patterns) { const m = input.match(p); if (m) return m[1]; }
   return null;
 }
 
-// ── ADD URL ──
+// ─── ADD URL ───
 async function addUrl() {
   const input = document.getElementById('urlInput').value.trim();
   if (!input) return;
   const id = extractVideoId(input);
-  if (!id) { showToast('Could not find a YouTube video ID in that URL', 'error'); return; }
+  if (!id) { showToast('Could not find a YouTube video ID', 'error'); return; }
   if (playlist.find(v => v.id === id)) { showToast('Already in playlist', 'error'); return; }
-
   document.getElementById('urlInput').value = '';
   const video = await fetchVideoMeta(id);
   playlist.push(video);
-  savePlaylist();
+  syncToServer();
   renderPlaylist();
-  showToast(`Added: ${video.title.slice(0,40)}`, 'success');
+  showToast('Added: ' + video.title.slice(0,40), 'success');
 }
 
 async function fetchVideoMeta(id) {
   try {
-    const r = await fetch(`/api/youtube?endpoint=videos&part=snippet&id=${id}`);
-    if (!r.ok) throw new Error(`YouTube API error ${r.status}`);
+    const r = await fetch('/api/youtube?endpoint=videos&part=snippet&id=' + id);
+    if (!r.ok) throw new Error('YouTube API error');
     const d = await r.json();
     if (d.items && d.items[0]) {
       const s = d.items[0].snippet;
-      return { id, title: s.title, channel: s.channelTitle, thumb: s.thumbnails?.medium?.url || `https://img.youtube.com/vi/${id}/mqdefault.jpg` };
+      return { id, title: s.title, channel: s.channelTitle, thumb: s.thumbnails?.medium?.url || 'https://img.youtube.com/vi/' + id + '/mqdefault.jpg' };
     }
   } catch(e) {}
-  // Fallback: thumbnail only
-  return { id, title: `Video ${id}`, channel: 'YouTube', thumb: `https://img.youtube.com/vi/${id}/mqdefault.jpg` };
+  return { id, title: 'Video ' + id, channel: 'YouTube', thumb: 'https://img.youtube.com/vi/' + id + '/mqdefault.jpg' };
 }
 
-// ── RENDER PLAYLIST ──
+// ─── RENDER PLAYLIST ───
 function renderPlaylist() {
   const el = document.getElementById('playlistEl');
   document.getElementById('videoCount').textContent = playlist.length;
   if (!playlist.length) {
-    el.innerHTML = `<div class="playlist-empty"><div class="empty-icon">🚛</div><div>No videos yet! Add YouTube URLs above<br/>or use AI Search to find content.</div></div>`;
+    el.innerHTML = '<div class="playlist-empty"><div class="empty-icon">🚛</div><div>No videos yet! Add YouTube URLs above or use AI Search.</div></div>';
     return;
   }
   el.innerHTML = playlist.map((v, i) => `
-    <div class="video-item" id="vi-${i}">
+    <div class="video-item">
       <div class="drag-handle" title="Drag to reorder">⠿</div>
       <img class="video-thumb-sm" src="${v.thumb}" onerror="this.src='https://img.youtube.com/vi/${v.id}/mqdefault.jpg'" loading="lazy"/>
       <div class="video-meta">
         <div class="video-title">${escHtml(v.title)}</div>
-        <div class="video-channel">${escHtml(v.channel || '')} · <a href="https://youtube.com/watch?v=${v.id}" target="_blank" style="color:var(--blue);text-decoration:none">▶ Watch</a></div>
+        <div class="video-channel">${escHtml(v.channel||'')} · <a href="https://youtube.com/watch?v=${v.id}" target="_blank" style="color:var(--blue);text-decoration:none">▶ Watch</a></div>
       </div>
       <div class="video-actions">
-        ${i > 0 ? `<button class="btn btn-icon btn-sm" onclick="moveVideo(${i},-1)" title="Move up">↑</button>` : ''}
-        ${i < playlist.length-1 ? `<button class="btn btn-icon btn-sm" onclick="moveVideo(${i},1)" title="Move down">↓</button>` : ''}
+        ${i>0?`<button class="btn btn-icon btn-sm" onclick="moveVideo(${i},-1)" title="Move up">↑</button>`:''}
+        ${i<playlist.length-1?`<button class="btn btn-icon btn-sm" onclick="moveVideo(${i},1)" title="Move down">↓</button>`:''}
         <button class="btn btn-danger btn-sm" onclick="removeVideo(${i})">✕</button>
       </div>
     </div>`).join('');
@@ -402,26 +523,18 @@ function moveVideo(i, dir) {
   const j = i + dir;
   if (j < 0 || j >= playlist.length) return;
   [playlist[i], playlist[j]] = [playlist[j], playlist[i]];
-  savePlaylist(); renderPlaylist();
+  syncToServer(); renderPlaylist();
 }
-
 function removeVideo(i) {
   playlist.splice(i, 1);
-  savePlaylist(); renderPlaylist();
+  syncToServer(); renderPlaylist();
   showToast('Removed', 'success');
 }
 
-function savePlaylist() {
-  localStorage.setItem('mtv_playlist', JSON.stringify(playlist));
-  syncToServer();
-}
-
-// ── AI SEARCH ──
+// ─── AI SEARCH ───
 async function aiSearch() {
   const prompt = document.getElementById('aiPrompt').value.trim();
   if (!prompt) { showToast('Enter a description first', 'error'); return; }
-  // Keys are handled server-side via Netlify env vars
-
   const btn = document.getElementById('aiSearchBtn');
   btn.innerHTML = '<div class="spinner"></div> Searching...';
   btn.disabled = true;
@@ -430,35 +543,28 @@ async function aiSearch() {
   selectedSearchResults.clear();
 
   try {
-    // Step 1: Claude generates smart YouTube search queries
     const claudeResp = await fetch('/api/anthropic', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 500,
         system: 'You generate YouTube search queries for finding child-safe videos. Return ONLY a JSON array of 4-6 short search query strings, no other text or markdown.',
-        messages: [{ role: 'user', content: `Generate YouTube search queries for: "${prompt}". Focus on content appropriate for a 3-year-old. Include terms like "for kids", "toddler", "children" where appropriate. Return JSON array only.` }]
+        messages: [{role:'user',content:'Generate YouTube search queries for: "' + prompt + '". Focus on content appropriate for a 3-year-old. Return JSON array only.'}]
       })
     });
-    if (!claudeResp.ok) {
-      const err = await claudeResp.json().catch(() => ({}));
-      throw new Error(err.error || `Claude API returned ${claudeResp.status}`);
-    }
+    if (!claudeResp.ok) throw new Error('Claude API error ' + claudeResp.status);
     const claudeData = await claudeResp.json();
-    if (!claudeData.content || !claudeData.content[0]) throw new Error('Unexpected response from Claude API');
-    let queries = JSON.parse(claudeData.content[0].text.replace(/```json|```/g, '').trim());
+    const queries = JSON.parse(claudeData.content[0].text.replace(/```json|```/g,'').trim());
 
-    document.getElementById('aiStatus').innerHTML = `<div class="loading-row"><div class="spinner"></div> Searching YouTube for ${queries.length} queries...</div>`;
-
-    // Step 2: Search YouTube for each query
+    document.getElementById('aiStatus').innerHTML = '<div class="loading-row"><div class="spinner"></div> Searching YouTube for ' + queries.length + ' queries...</div>';
     const maxPerQuery = Math.ceil(parseInt(document.getElementById('maxResults').value) / queries.length);
     const allResults = [];
     const seen = new Set();
 
     for (const q of queries) {
       try {
-        const ytResp = await fetch(`/api/youtube?endpoint=search&part=snippet&q=${encodeURIComponent(q)}&type=video&safeSearch=strict&videoEmbeddable=true&maxResults=${maxPerQuery}`);
+        const ytResp = await fetch('/api/youtube?endpoint=search&part=snippet&q=' + encodeURIComponent(q) + '&type=video&safeSearch=strict&videoEmbeddable=true&maxResults=' + maxPerQuery);
         if (!ytResp.ok) continue;
         const ytData = await ytResp.json();
         if (ytData.items) {
@@ -466,12 +572,7 @@ async function aiSearch() {
             const id = item.id.videoId;
             if (!seen.has(id)) {
               seen.add(id);
-              allResults.push({
-                id,
-                title: item.snippet.title,
-                channel: item.snippet.channelTitle,
-                thumb: item.snippet.thumbnails?.medium?.url || `https://img.youtube.com/vi/${id}/mqdefault.jpg`
-              });
+              allResults.push({ id, title: item.snippet.title, channel: item.snippet.channelTitle, thumb: item.snippet.thumbnails?.medium?.url || 'https://img.youtube.com/vi/' + id + '/mqdefault.jpg' });
             }
           }
         }
@@ -479,11 +580,10 @@ async function aiSearch() {
     }
 
     searchResultCache = allResults;
-    document.getElementById('aiStatus').innerHTML = `<div style="color:var(--green);font-size:13px;padding:8px 0">✓ Found ${allResults.length} videos. Tap to select ones you want to add.</div>`;
+    document.getElementById('aiStatus').innerHTML = '<div style="color:var(--green);font-size:13px;padding:8px 0">✓ Found ' + allResults.length + ' videos. Tap to select.</div>';
     renderSearchResults(allResults);
-
   } catch(e) {
-    document.getElementById('aiStatus').innerHTML = `<div style="color:#ff8080;font-size:13px;padding:8px 0">Error: ${e.message}</div>`;
+    document.getElementById('aiStatus').innerHTML = '<div style="color:#ff8080;font-size:13px;padding:8px 0">Error: ' + e.message + '</div>';
   }
 
   btn.innerHTML = '🔍 Find Videos with AI';
@@ -492,7 +592,7 @@ async function aiSearch() {
 
 function renderSearchResults(results) {
   const el = document.getElementById('searchResults');
-  if (!results.length) { el.innerHTML = '<div style="color:var(--muted);font-size:14px;padding:16px">No results found. Try a different prompt.</div>'; return; }
+  if (!results.length) { el.innerHTML = '<div style="color:var(--muted);font-size:14px;padding:16px">No results. Try a different prompt.</div>'; return; }
   el.innerHTML = results.map((v, i) => `
     <div class="result-card-wrap">
       <div class="result-card ${selectedSearchResults.has(i)?'selected':''}" onclick="toggleSearchResult(${i})">
@@ -501,10 +601,12 @@ function renderSearchResults(results) {
           <div class="result-title">${escHtml(v.title)}</div>
           <div class="result-channel">${escHtml(v.channel)}</div>
         </div>
-        ${selectedSearchResults.has(i) ? '<div class="result-check">✓</div>' : ''}
+        ${selectedSearchResults.has(i)?'<div class="result-check">✓</div>':''}
       </div>
     </div>`).join('');
-  updateAddSelectedRow();
+  const count = selectedSearchResults.size;
+  document.getElementById('selectedCount').textContent = count;
+  document.getElementById('addSelectedRow').style.display = count > 0 ? 'block' : 'none';
 }
 
 function toggleSearchResult(i) {
@@ -513,41 +615,28 @@ function toggleSearchResult(i) {
   renderSearchResults(searchResultCache);
 }
 
-function updateAddSelectedRow() {
-  const row = document.getElementById('addSelectedRow');
-  const count = selectedSearchResults.size;
-  document.getElementById('selectedCount').textContent = count;
-  row.style.display = count > 0 ? 'block' : 'none';
-}
-
 function addSelectedToPlaylist() {
   let added = 0;
   for (const i of selectedSearchResults) {
     const v = searchResultCache[i];
-    if (!playlist.find(p => p.id === v.id)) {
-      playlist.push(v);
-      added++;
-    }
+    if (!playlist.find(p => p.id === v.id)) { playlist.push(v); added++; }
   }
-  savePlaylist();
-  renderPlaylist();
+  syncToServer(); renderPlaylist();
   selectedSearchResults.clear();
   renderSearchResults(searchResultCache);
-  showToast(`Added ${added} videos to playlist!`, 'success');
+  showToast('Added ' + added + ' videos!', 'success');
   switchTab('manual');
 }
 
-// ── EXPORT ──
-
-
-// ── UTILS ──
+// ─── UTILS ───
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escAttr(s) { return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
 let toastTimer;
-function showToast(msg, type='') {
+function showToast(msg, type) {
   const el = document.getElementById('toast');
   el.textContent = msg;
-  el.className = `toast show ${type}`;
+  el.className = 'toast show' + (type ? ' ' + type : '');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
 }
