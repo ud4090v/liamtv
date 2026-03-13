@@ -87,6 +87,7 @@ header{background:rgba(11,11,20,0.95);backdrop-filter:blur(20px);border-bottom:1
 .field input,.field select{background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;padding:12px 14px;outline:none;transition:border-color 0.2s;width:100%}
 .field input:focus,.field select:focus{border-color:var(--orange)}
 select option{background:#1c1c2e}
+.filters-textarea:focus{border-color:var(--orange)!important}
 
 .url-row{display:flex;gap:10px;margin-bottom:16px}
 .url-row input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:15px;padding:12px 16px;outline:none;transition:border-color 0.2s}
@@ -232,6 +233,15 @@ select option{background:#1c1c2e}
           </div>
         </div>
         <div class="divider"></div>
+        <div class="section-title" style="font-size:15px;margin-bottom:8px"><span>🚫</span> Content Filters</div>
+        <div class="hint" style="margin-bottom:12px">Describe what to block. AI Search will avoid these, and manual URL adds will be screened against them.</div>
+        <textarea id="contentFilters"
+          placeholder="e.g. fail videos, reaction videos, people reacting to other videos, cat videos, dog videos, scary content, loud jump scares, clickbait thumbnails"
+          oninput="saveSettings()"
+          class="filters-textarea"
+          style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;padding:12px 14px;outline:none;resize:vertical;min-height:90px;transition:border-color 0.2s;line-height:1.5"></textarea>
+        <div class="hint" style="margin-top:8px">💡 Plain English works great: "no reaction channels", "avoid anything scary or loud"</div>
+        <div class="divider"></div>
         <div class="section-title" style="font-size:15px;margin-bottom:12px"><span>🌙</span> Default Sleep Timer</div>
         <div class="hint" style="margin-bottom:12px">Screen fades over last 5 minutes</div>
         <div class="timer-pills" id="timerPills">
@@ -273,7 +283,7 @@ select option{background:#1c1c2e}
 // STATE
 let currentPlaylistName = null;
 let playlist = [];
-let settings = { channelName: '', playOrder: 'sequence', sleepTimer: 30 };
+let settings = { channelName: '', playOrder: 'sequence', sleepTimer: 30, contentFilters: '' };
 let selectedSearchResults = new Set();
 let searchResultCache = [];
 let syncing = false;
@@ -421,10 +431,12 @@ function switchTab(tab) {
 function applySettings() {
   document.getElementById('channelName').value = settings.channelName || '';
   document.getElementById('playOrder').value = settings.playOrder || 'sequence';
+  document.getElementById('contentFilters').value = settings.contentFilters || '';
 }
 function saveSettings() {
   settings.channelName = document.getElementById('channelName').value;
   settings.playOrder = document.getElementById('playOrder').value;
+  settings.contentFilters = document.getElementById('contentFilters').value.trim();
   document.getElementById('headerTitle').textContent = settings.channelName || currentPlaylistName;
   syncToServer();
 }
@@ -475,11 +487,57 @@ async function addUrl() {
   if (!id) { showToast('Could not find a YouTube video ID', 'error'); return; }
   if (playlist.find(v => v.id === id)) { showToast('Already in playlist', 'error'); return; }
   document.getElementById('urlInput').value = '';
+
+  const addBtn = document.querySelector('.url-row .btn-primary');
+  addBtn.innerHTML = '<div class="spinner"></div>';
+  addBtn.disabled = true;
+
   const video = await fetchVideoMeta(id);
+
+  // Screen against content filters if set
+  if (settings.contentFilters) {
+    const blocked = await isBlockedByFilters(video.title, video.channel, settings.contentFilters);
+    if (blocked.result) {
+      addBtn.innerHTML = '+ Add';
+      addBtn.disabled = false;
+      showToast('🚫 Blocked: ' + blocked.reason, 'error');
+      return;
+    }
+  }
+
+  addBtn.innerHTML = '+ Add';
+  addBtn.disabled = false;
   playlist.push(video);
   syncToServer();
   renderPlaylist();
   showToast('Added: ' + video.title.slice(0,40), 'success');
+}
+
+// Screen a single video title/channel against content filters
+async function isBlockedByFilters(title, channel, filters) {
+  try {
+    const resp = await fetch('/api/anthropic', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: 'claude-haiku-4-20250514',
+        max_tokens: 60,
+        system: 'You screen YouTube videos for a parent. Reply with JSON only: {"blocked": true/false, "reason": "short reason or empty string"}. No other text.',
+        messages: [{role:'user', content:
+          'Content filters (block if matches any): ' + filters + '\n\n' +
+          'Video title: ' + title + '\n' +
+          'Channel: ' + channel + '\n\n' +
+          'Is this video blocked by the filters?'
+        }]
+      })
+    });
+    if (!resp.ok) return { result: false };
+    const data = await resp.json();
+    const parsed = JSON.parse(data.content[0].text.replace(/```json|```/g,'').trim());
+    return { result: !!parsed.blocked, reason: parsed.reason || '' };
+  } catch(e) {
+    return { result: false }; // fail open — don't block if check fails
+  }
 }
 
 async function fetchVideoMeta(id) {
@@ -531,6 +589,35 @@ function removeVideo(i) {
   showToast('Removed', 'success');
 }
 
+// ─── BATCH FILTER (for AI search results) ───
+// Sends all titles to Claude in one call for efficiency
+async function batchFilterResults(videos, filters) {
+  try {
+    const list = videos.map((v, i) => (i+1) + '. [' + v.channel + '] ' + v.title).join('\n');
+    const resp = await fetch('/api/anthropic', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: 'claude-haiku-4-20250514',
+        max_tokens: 300,
+        system: 'You screen YouTube videos for a parent. Given a numbered list of videos and content filters, return ONLY a JSON array of the numbers (1-based) that should be BLOCKED. Example: [2,5,7]. If none blocked, return []. No other text.',
+        messages: [{role:'user', content:
+          'Content filters (block if matches any): ' + filters + '\n\n' +
+          'Videos:\n' + list + '\n\n' +
+          'Which video numbers are blocked by these filters? Return JSON array only.'
+        }]
+      })
+    });
+    if (!resp.ok) return videos; // fail open
+    const data = await resp.json();
+    const blockedNums = JSON.parse(data.content[0].text.replace(/```json|```/g,'').trim());
+    const blockedSet = new Set(blockedNums.map(n => n - 1)); // convert to 0-based index
+    return videos.filter((_, i) => !blockedSet.has(i));
+  } catch(e) {
+    return videos; // fail open
+  }
+}
+
 // ─── AI SEARCH ───
 async function aiSearch() {
   const prompt = document.getElementById('aiPrompt').value.trim();
@@ -542,7 +629,11 @@ async function aiSearch() {
   document.getElementById('aiStatus').innerHTML = '<div class="loading-row"><div class="spinner"></div> Claude is generating search queries...</div>';
   selectedSearchResults.clear();
 
+  const filters = settings.contentFilters || '';
   try {
+    const filterInstruction = filters
+      ? '\n\nCONTENT FILTERS — avoid anything matching: ' + filters
+      : '';
     const claudeResp = await fetch('/api/anthropic', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
@@ -550,7 +641,7 @@ async function aiSearch() {
         model: 'claude-sonnet-4-20250514',
         max_tokens: 500,
         system: 'You generate YouTube search queries for finding child-safe videos. Return ONLY a JSON array of 4-6 short search query strings, no other text or markdown.',
-        messages: [{role:'user',content:'Generate YouTube search queries for: "' + prompt + '". Focus on content appropriate for a 3-year-old. Return JSON array only.'}]
+        messages: [{role:'user',content:'Generate YouTube search queries for: "' + prompt + '". Focus on content appropriate for a 3-year-old.' + filterInstruction + ' Return JSON array only.'}]
       })
     });
     if (!claudeResp.ok) throw new Error('Claude API error ' + claudeResp.status);
@@ -579,9 +670,20 @@ async function aiSearch() {
       } catch(e) {}
     }
 
-    searchResultCache = allResults;
-    document.getElementById('aiStatus').innerHTML = '<div style="color:var(--green);font-size:13px;padding:8px 0">✓ Found ' + allResults.length + ' videos. Tap to select.</div>';
-    renderSearchResults(allResults);
+    // Batch-filter results against content filters if set
+    let filteredResults = allResults;
+    if (filters && allResults.length > 0) {
+      document.getElementById('aiStatus').innerHTML = '<div class="loading-row"><div class="spinner"></div> Screening ' + allResults.length + ' videos against content filters...</div>';
+      filteredResults = await batchFilterResults(allResults, filters);
+      const removed = allResults.length - filteredResults.length;
+      const filterNote = removed > 0 ? ' <span style="color:var(--muted)">(' + removed + ' blocked by filters)</span>' : '';
+      document.getElementById('aiStatus').innerHTML = '<div style="color:var(--green);font-size:13px;padding:8px 0">✓ ' + filteredResults.length + ' videos passed filters.' + filterNote + ' Tap to select.</div>';
+    } else {
+      document.getElementById('aiStatus').innerHTML = '<div style="color:var(--green);font-size:13px;padding:8px 0">✓ Found ' + allResults.length + ' videos. Tap to select.</div>';
+    }
+
+    searchResultCache = filteredResults;
+    renderSearchResults(filteredResults);
   } catch(e) {
     document.getElementById('aiStatus').innerHTML = '<div style="color:#ff8080;font-size:13px;padding:8px 0">Error: ' + e.message + '</div>';
   }
