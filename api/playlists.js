@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     const playlists = [];
     for (const blob of blobs) {
       const name = blob.pathname.replace('playlists/', '').replace('.json', '');
-      if (!name) continue;
+      if (!name || name.startsWith('_')) continue;
       try {
         const response = await fetch(blob.url + '?t=' + Date.now());
         const data = await response.json();
