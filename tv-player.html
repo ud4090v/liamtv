@@ -552,6 +552,8 @@ function goHome() {
   cancelTimer();
   currentPlaylistName = null;
   liamTVMode = false;
+  liamTVQueue = [];
+  liamTVFilling = false;
   playlist = [];
   currentIdx = 0;
   hidePauseOverlay();
@@ -639,6 +641,12 @@ let liamTVCurrentPick = null;
 let liamTVAutoCount = 0; // videos auto-advanced without user interaction
 const LIAMTV_AUTO_LIMIT = 5;
 
+// ── Queue buffer for seamless continuous play ──
+let liamTVQueue = [];           // pre-fetched videos ready to play
+let liamTVFilling = false;      // prevent concurrent fill calls
+const LIAMTV_QUEUE_TARGET = 10; // fill up to this many
+const LIAMTV_QUEUE_REFILL = 5;  // refill when queue drops to this
+
 function showLiamTVPause() {
   if (ytPlayer) { try { ytPlayer.pauseVideo(); } catch(e){} }
   document.getElementById('liamTVPause').style.display = 'flex';
@@ -707,17 +715,19 @@ async function startLiamTV() {
     liamTVTaste = allVideos;
     liamTVMode = true;
     liamTVPlayed = new Set();
+    liamTVQueue = [];
     currentPlaylistName = null;
     playlist = [];
     currentIdx = 0;
     settings.channelName = '🚛 Liam TV';
-    
+
     applySettings();
-    
+
     // Show loading state on home screen (don't hide it yet — avoid blank flash)
-    document.getElementById('homeLiamBtn').querySelector('.ltv-desc').textContent = '🔍 Finding a video...';
-    
-    // Find and play first video (home screen hides when video starts)
+    document.getElementById('homeLiamBtn').querySelector('.ltv-desc').textContent = '🔍 Loading your stream...';
+
+    // Pre-fill the full queue before playing first video
+    await liamTVFillQueue();
     await liamTVNext();
   } catch(e) {
     console.warn('LiamTV start failed:', e);
@@ -725,47 +735,89 @@ async function startLiamTV() {
   }
 }
 
+// Fill the queue buffer in the background.
+// Fetches a batch of 10 videos via /api/videos/next (which generates 6 queries
+// and tries each — guaranteed to return a video or fail gracefully).
+async function liamTVFillQueue() {
+  if (liamTVFilling) return;
+  liamTVFilling = true;
+
+  const needed = LIAMTV_QUEUE_TARGET - liamTVQueue.length;
+  console.log(`LiamTV: filling queue (need ${needed} more, have ${liamTVQueue.length})`);
+
+  let added = 0;
+  let attempts = 0;
+  const maxAttempts = needed + 4; // a few extra attempts in case some return null
+
+  while (added < needed && attempts < maxAttempts) {
+    attempts++;
+    try {
+      const result = await apiNextVideo(
+        liamTVTaste,
+        liamTVPlayed,
+        settings.contentFilters || '',
+        liamTVPlayed.size
+      );
+      if (result.video) {
+        liamTVPlayed.add(result.video.id);
+        liamTVQueue.push(result.video);
+        added++;
+      }
+    } catch(e) {
+      console.warn('LiamTV fill attempt failed:', e.message);
+      break;
+    }
+  }
+
+  console.log(`LiamTV: queue filled — ${liamTVQueue.length} videos ready`);
+  liamTVFilling = false;
+}
+
+// Dequeue the next video from the buffer and play it.
+// If the queue is empty (first call or after a failure), waits for fill first.
+// Triggers background refill whenever queue drops to LIAMTV_QUEUE_REFILL.
 async function liamTVNext() {
   if (liamTVLoading) return;
   liamTVLoading = true;
-  
-  try {
-    const result = await apiNextVideo(
-      liamTVTaste,
-      liamTVPlayed,
-      settings.contentFilters || '',
-      liamTVPlayed.size
-    );
 
-    let picked = result.video || null;
+  try {
+    // If queue is empty, we must wait for it to fill (blocking — first launch or recovery)
+    if (liamTVQueue.length === 0) {
+      await liamTVFillQueue();
+    }
+
+    // Trigger background refill when queue is getting low (non-blocking)
+    if (liamTVQueue.length <= LIAMTV_QUEUE_REFILL && !liamTVFilling) {
+      liamTVFillQueue(); // intentionally not awaited
+    }
+
+    const picked = liamTVQueue.shift();
 
     if (!picked) {
-      // API exhausted all query attempts (very rare — usually means APIs are slow/down).
-      // Wait briefly and retry rather than spinning.
+      // Fill returned nothing — APIs down. Retry after a delay.
       liamTVLoading = false;
-      console.warn('liamTVNext: API returned no video, retrying in 3s');
+      console.warn('liamTVNext: queue empty after fill, retrying in 3s');
       setTimeout(() => liamTVNext(), 3000);
       return;
     }
-    
-    liamTVPlayed.add(picked.id);
+
+    liamTVCurrentPick = picked;
+    liamTVWatchStart = Date.now();
+
+    // Update playlist to single entry so existing HUD/controls work unchanged
     playlist = [picked];
     currentIdx = 0;
-    
-    // Start watch timer — only save to history if watched 10+ seconds
-    liamTVWatchStart = Date.now();
-    liamTVCurrentPick = picked;
-    
-    // NOW hide home screen — video is ready to play
+
+    // Hide home screen on first video
     document.getElementById('homeScreen').style.display = 'none';
-    
+
     if (ytPlayer) {
       ytPlayer.loadVideoById(picked.id);
     } else {
       initPlayer();
     }
     updateHUD();
-    
+
   } catch(e) {
     console.warn('LiamTV next failed:', e);
   }
