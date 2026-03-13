@@ -283,25 +283,34 @@ select option{background:#1c1c2e}
 <div class="toast" id="toast"></div>
 
 <script>
-// ─── GLOBAL CONTENT BASELINE ───
-// Applied to ALL playlists, every search, every manual add.
-// Based on known YouTube engagement-bait patterns, Elsagate research, and
-// algorithmic toxic content categories documented in child safety studies.
-const GLOBAL_CONTENT_FILTERS = `
-REACTION CONTENT: videos where the main content is a person or group watching and reacting to other videos; "reaction" channels; commentary channels whose primary format is reacting
-FAIL & PAIN CONTENT: fail compilations, people or animals getting hurt, painful accidents filmed for laughs, "epic fail" videos, blooper reels involving injury or humiliation
-CHALLENGE VIDEOS: dangerous or embarrassing challenge trends (ice bucket evolved into harmful variants, Tide pod, skull breaker, etc.); "I did X challenge" formats that are attention-engineered
-PRANK VIDEOS: pranks played on people, hidden camera pranks, "prank gone wrong", fake scare pranks, psychological manipulation framed as humor
-CLICKBAIT FORMATS: titles containing "GONE WRONG", "EXTREME", "YOU WON'T BELIEVE", "GONE SEXUAL", "NOT CLICKBAIT", "I'M LEAVING", "WE NEED TO TALK", "EXPOSED", "SHOCKING"; videos where thumbnail shows exaggerated shock/crying/screaming faces with arrows or circles pointing at things
-DRAMA & BEEF: creator drama, "responding to hate", "calling out", feuds between influencers, emotional manipulation ("I have something to tell you...", "I'm quitting YouTube")
-UNBOXING & HAUL CONTENT: unboxing luxury items, toy haul videos from influencer channels, "mystery box" videos, sponsor-disguised content presented as entertainment
-ELSAGATE-STYLE CONTENT: adults dressed as or imitating cartoon characters (Spider-Man, Elsa, etc.) in live action skits not made by the IP owner; fast-cut nursery rhyme videos with violent or disturbing themes disguised as kids content; videos that superficially look like kids content but contain adult themes
-OVERSTIMULATION CONTENT: videos with relentless rapid-fire cuts every 1-2 seconds, constant screaming/yelling presenters, extreme sound effects used to keep toddlers in a trance-like state; "brain rot" short-form content repurposed as long videos
-INFLUENCER PROMOTION: YouTubers promoting their own merch, "check the description", "link in bio", channels that exist primarily to sell products to children or their parents
-TOP-N COMPILATIONS: "Top 10 scariest", "Top 5 most dangerous", countdown format videos designed purely for algorithm performance with no educational value
-COMMENT BAIT: videos ending with "comment below if you want part 2", "smash the like button or this happens", manipulation of children's behavior through fake consequences
-ANIMALS IN DISTRESS: videos framing animal suffering, animal fights, or animals in dangerous situations as entertaining content, even if presented as "funny"
-`.trim();
+// ─── API CLIENT — all AI/YouTube/filtering logic lives server-side ───
+
+async function apiSearchVideos(prompt, playlistFilters, maxResults) {
+  const resp = await fetch('/api/videos/search', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, playlistFilters, maxResults }),
+  });
+  if (!resp.ok) throw new Error(`Search API error ${resp.status}`);
+  return resp.json(); // { videos[], filtered }
+}
+
+async function apiScreenVideos(videos, playlistFilters) {
+  if (!videos.length) return { passed: [], blocked: [] };
+  const resp = await fetch('/api/videos/screen', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ videos, playlistFilters }),
+  });
+  if (!resp.ok) return { passed: videos, blocked: [] };
+  return resp.json(); // { passed[], blocked[], isBlocked?, reason? }
+}
+
+async function apiVideoMeta(id) {
+  const resp = await fetch(`/api/videos/meta?id=${encodeURIComponent(id)}`);
+  if (!resp.ok) return { id, title: `Video ${id}`, channel: 'YouTube', thumb: `https://img.youtube.com/vi/${id}/mqdefault.jpg` };
+  return resp.json();
+}
 
 // STATE
 let currentPlaylistName = null;
@@ -515,14 +524,15 @@ async function addUrl() {
   addBtn.innerHTML = '<div class="spinner"></div>';
   addBtn.disabled = true;
 
-  const video = await fetchVideoMeta(id);
+  // Fetch meta + screen in parallel (screen uses title from meta first)
+  const video = await apiVideoMeta(id);
 
-  // Always screen — global baseline + playlist filters
-  const blocked = await isBlockedByFilters(video.title, video.channel, settings.contentFilters || '');
-  if (blocked.result) {
+  // Screen via API (single video path returns isBlocked + reason)
+  const screenResult = await apiScreenVideos([video], settings.contentFilters || '');
+  if (screenResult.isBlocked) {
     addBtn.innerHTML = '+ Add';
     addBtn.disabled = false;
-    showToast('🚫 Blocked: ' + blocked.reason, 'error');
+    showToast('🚫 Blocked: ' + (screenResult.reason || 'content filter'), 'error');
     return;
   }
 
@@ -532,56 +542,6 @@ async function addUrl() {
   syncToServer();
   renderPlaylist();
   showToast('Added: ' + video.title.slice(0,40), 'success');
-}
-
-// Build the combined filter string (global baseline + per-playlist additions)
-function buildFilterPrompt(playlistFilters) {
-  const parts = ['=== GLOBAL RULES (always apply) ===\n' + GLOBAL_CONTENT_FILTERS];
-  if (playlistFilters && playlistFilters.trim()) {
-    parts.push('=== ADDITIONAL RULES FOR THIS PLAYLIST ===\n' + playlistFilters.trim());
-  }
-  return parts.join('\n\n');
-}
-
-// Screen a single video title/channel against content filters
-async function isBlockedByFilters(title, channel, playlistFilters) {
-  try {
-    const filterPrompt = buildFilterPrompt(playlistFilters);
-    const resp = await fetch('/api/anthropic', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        model: 'claude-haiku-4-20250514',
-        max_tokens: 80,
-        system: 'You screen YouTube videos for a parent protecting a 3-year-old. Reply with JSON only: {"blocked": true/false, "reason": "short reason or empty string"}. No other text.',
-        messages: [{role:'user', content:
-          filterPrompt + '\n\n' +
-          'Video title: ' + title + '\n' +
-          'Channel: ' + channel + '\n\n' +
-          'Is this video blocked by any of the above rules?'
-        }]
-      })
-    });
-    if (!resp.ok) return { result: false };
-    const data = await resp.json();
-    const parsed = JSON.parse(data.content[0].text.replace(/```json|```/g,'').trim());
-    return { result: !!parsed.blocked, reason: parsed.reason || '' };
-  } catch(e) {
-    return { result: false }; // fail open — don't block if check fails
-  }
-}
-
-async function fetchVideoMeta(id) {
-  try {
-    const r = await fetch('/api/youtube?endpoint=videos&part=snippet&id=' + id);
-    if (!r.ok) throw new Error('YouTube API error');
-    const d = await r.json();
-    if (d.items && d.items[0]) {
-      const s = d.items[0].snippet;
-      return { id, title: s.title, channel: s.channelTitle, thumb: s.thumbnails?.medium?.url || 'https://img.youtube.com/vi/' + id + '/mqdefault.jpg' };
-    }
-  } catch(e) {}
-  return { id, title: 'Video ' + id, channel: 'YouTube', thumb: 'https://img.youtube.com/vi/' + id + '/mqdefault.jpg' };
 }
 
 // ─── RENDER PLAYLIST ───
@@ -622,34 +582,6 @@ function removeVideo(i) {
 
 // ─── BATCH FILTER (for AI search results) ───
 // Sends all titles to Claude in one call for efficiency
-async function batchFilterResults(videos, playlistFilters) {
-  try {
-    const filterPrompt = buildFilterPrompt(playlistFilters);
-    const list = videos.map((v, i) => (i+1) + '. [' + v.channel + '] ' + v.title).join('\n');
-    const resp = await fetch('/api/anthropic', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        model: 'claude-haiku-4-20250514',
-        max_tokens: 300,
-        system: 'You screen YouTube videos for a parent protecting a 3-year-old. Given a numbered list of videos and content filter rules, return ONLY a JSON array of the numbers (1-based) that should be BLOCKED. Example: [2,5,7]. If none blocked, return []. No other text.',
-        messages: [{role:'user', content:
-          filterPrompt + '\n\n' +
-          'Videos:\n' + list + '\n\n' +
-          'Which video numbers are blocked by any of the above rules? Return JSON array only.'
-        }]
-      })
-    });
-    if (!resp.ok) return videos; // fail open
-    const data = await resp.json();
-    const blockedNums = JSON.parse(data.content[0].text.replace(/```json|```/g,'').trim());
-    const blockedSet = new Set(blockedNums.map(n => n - 1)); // convert to 0-based index
-    return videos.filter((_, i) => !blockedSet.has(i));
-  } catch(e) {
-    return videos; // fail open
-  }
-}
-
 // ─── AI SEARCH ───
 async function aiSearch() {
   const prompt = document.getElementById('aiPrompt').value.trim();
@@ -658,62 +590,19 @@ async function aiSearch() {
   btn.innerHTML = '<div class="spinner"></div> Searching...';
   btn.disabled = true;
   document.getElementById('searchResults').innerHTML = '';
-  document.getElementById('aiStatus').innerHTML = '<div class="loading-row"><div class="spinner"></div> Claude is generating search queries...</div>';
+  document.getElementById('aiStatus').innerHTML = '<div class="loading-row"><div class="spinner"></div> AI searching & screening...</div>';
   selectedSearchResults.clear();
 
-  const filters = settings.contentFilters || '';
   try {
-    const filterInstruction = '\n\nCONTENT FILTERS — always avoid: reaction videos, fail/pain compilations, prank videos, clickbait formats (GONE WRONG, EXTREME, YOU WON\'T BELIEVE), drama/beef content, Elsagate-style content, overstimulation rapid-cut videos, influencer merch promotion, unboxing haul channels, adults imitating cartoon characters in low-quality skits'
-      + (filters ? '. Also avoid: ' + filters : '') + '.';
-
-    const claudeResp = await fetch('/api/anthropic', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 500,
-        system: 'You generate YouTube search queries for finding child-safe videos. Return ONLY a JSON array of 4-6 short search query strings, no other text or markdown.',
-        messages: [{role:'user',content:'Generate YouTube search queries for: "' + prompt + '". Focus on content appropriate for a 3-year-old.' + filterInstruction + ' Return JSON array only.'}]
-      })
-    });
-    if (!claudeResp.ok) throw new Error('Claude API error ' + claudeResp.status);
-    const claudeData = await claudeResp.json();
-    const queries = JSON.parse(claudeData.content[0].text.replace(/```json|```/g,'').trim());
-
-    document.getElementById('aiStatus').innerHTML = '<div class="loading-row"><div class="spinner"></div> Searching YouTube for ' + queries.length + ' queries...</div>';
-    const maxPerQuery = Math.ceil(parseInt(document.getElementById('maxResults').value) / queries.length);
-    const allResults = [];
-    const seen = new Set();
-
-    for (const q of queries) {
-      try {
-        const ytResp = await fetch('/api/youtube?endpoint=search&part=snippet&q=' + encodeURIComponent(q) + '&type=video&safeSearch=strict&videoEmbeddable=true&maxResults=' + maxPerQuery);
-        if (!ytResp.ok) continue;
-        const ytData = await ytResp.json();
-        if (ytData.items) {
-          for (const item of ytData.items) {
-            const id = item.id.videoId;
-            if (!seen.has(id)) {
-              seen.add(id);
-              allResults.push({ id, title: item.snippet.title, channel: item.snippet.channelTitle, thumb: item.snippet.thumbnails?.medium?.url || 'https://img.youtube.com/vi/' + id + '/mqdefault.jpg' });
-            }
-          }
-        }
-      } catch(e) {}
-    }
-
-    // Always batch-filter — global baseline applies even with no per-playlist filters
-    let filteredResults = allResults;
-    if (allResults.length > 0) {
-      document.getElementById('aiStatus').innerHTML = '<div class="loading-row"><div class="spinner"></div> Screening ' + allResults.length + ' videos against content filters...</div>';
-      filteredResults = await batchFilterResults(allResults, filters);
-      const removed = allResults.length - filteredResults.length;
-      const filterNote = removed > 0 ? ' <span style="color:var(--muted)">(' + removed + ' filtered out)</span>' : '';
-      document.getElementById('aiStatus').innerHTML = '<div style="color:var(--green);font-size:13px;padding:8px 0">✓ ' + filteredResults.length + ' videos passed screening.' + filterNote + ' Tap to select.</div>';
-    }
-
-    searchResultCache = filteredResults;
-    renderSearchResults(filteredResults);
+    const maxResults = parseInt(document.getElementById('maxResults').value) || 10;
+    const result = await apiSearchVideos(prompt, settings.contentFilters || '', maxResults);
+    const filterNote = result.filtered > 0
+      ? ' <span style="color:var(--muted)">(' + result.filtered + ' filtered out)</span>'
+      : '';
+    document.getElementById('aiStatus').innerHTML =
+      '<div style="color:var(--green);font-size:13px;padding:8px 0">✓ ' + (result.videos || []).length + ' videos passed screening.' + filterNote + ' Tap to select.</div>';
+    searchResultCache = result.videos || [];
+    renderSearchResults(searchResultCache);
   } catch(e) {
     document.getElementById('aiStatus').innerHTML = '<div style="color:#ff8080;font-size:13px;padding:8px 0">Error: ' + e.message + '</div>';
   }

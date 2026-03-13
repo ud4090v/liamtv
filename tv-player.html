@@ -374,41 +374,58 @@ let goodnightActive = false;
 let hudHideTimer = null;
 const TIMER_MINS = [10, 20, 30, 45, 60, 90];
 
-// ── GLOBAL CONTENT FILTER BASELINE (mirrors playlist-manager.html) ──
-const GLOBAL_CONTENT_FILTERS = `REACTION CONTENT: videos where the main content is a person or group watching and reacting to other videos; reaction channels; commentary channels whose primary format is reacting
-FAIL & PAIN CONTENT: fail compilations, people or animals getting hurt, painful accidents filmed for laughs, epic fail videos, blooper reels involving injury or humiliation
-CHALLENGE & PRANK VIDEOS: dangerous challenge trends, pranks played on people, hidden camera pranks, fake scare pranks, psychological manipulation framed as humor
-CLICKBAIT FORMATS: titles containing GONE WRONG, EXTREME, YOU WON'T BELIEVE, GONE SEXUAL, NOT CLICKBAIT, I'M LEAVING, WE NEED TO TALK, EXPOSED, SHOCKING; exaggerated shock/crying/screaming thumbnail faces
-DRAMA & BEEF: creator drama, responding to hate, calling out, feuds between influencers, emotional manipulation (I have something to tell you, I'm quitting YouTube)
-UNBOXING & HAUL CONTENT: unboxing luxury items, toy haul videos from influencer channels, mystery box videos, sponsor-disguised content presented as entertainment
-ELSAGATE-STYLE CONTENT: adults dressed as or imitating cartoon characters in live action skits not made by the IP owner; fast-cut nursery rhyme videos with violent or disturbing themes disguised as kids content
-OVERSTIMULATION CONTENT: videos with relentless rapid-fire cuts every 1-2 seconds, constant screaming/yelling presenters, extreme sound effects used to keep toddlers in a trance-like state; brain rot short-form content repurposed as long videos
-INFLUENCER PROMOTION: YouTubers promoting their own merch, channels that exist primarily to sell products to children
-TOP-N ALGORITHM BAIT: Top 10 scariest, Top 5 most dangerous, countdown format videos with no educational value
-COMMENT BAIT: videos ending with comment below if you want part 2, smash the like button or this happens
-ANIMALS IN DISTRESS: videos framing animal suffering, animal fights, or animals in dangerous situations as entertaining`;
+// ── API CLIENT — thin wrappers around the LiamTV API layer ──
 
-// Batch-screen video list against global + playlist filters (single Claude call)
-async function batchFilterVideos(videos, playlistFilters) {
-  if (!videos.length) return videos;
-  const filterBlock = GLOBAL_CONTENT_FILTERS + (playlistFilters ? '\n\nADDITIONAL RULES:\n' + playlistFilters : '');
-  try {
-    const list = videos.map((v, i) => `${i+1}. [${v.channel}] ${v.title}`).join('\n');
-    const resp = await fetch('/api/anthropic', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-20250514',
-        max_tokens: 200,
-        system: 'You screen YouTube videos for a parent protecting a 3-year-old. Given a numbered list of videos and content filter rules, return ONLY a JSON array of the numbers (1-based) that should be BLOCKED. Example: [2,5]. If none blocked, return []. No other text.',
-        messages: [{ role: 'user', content: filterBlock + '\n\nVideos:\n' + list + '\n\nWhich numbers are blocked? Return JSON array only.' }]
-      })
-    });
-    if (!resp.ok) return videos;
-    const data = await resp.json();
-    const blocked = new Set(JSON.parse(data.content[0].text.replace(/```json|```/g,'').trim()).map(n => n - 1));
-    return videos.filter((_, i) => !blocked.has(i));
-  } catch(e) { return videos; } // fail open
+// Search for videos (Claude query gen + YouTube + filtering, all server-side)
+async function apiSearchVideos(prompt, playlistFilters, maxResults) {
+  const resp = await fetch('/api/videos/search', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, playlistFilters, maxResults }),
+  });
+  if (!resp.ok) throw new Error(`Search API error ${resp.status}`);
+  return resp.json(); // { videos[], filtered }
+}
+
+// Screen a batch of videos (filtering only, all server-side)
+async function apiScreenVideos(videos, playlistFilters) {
+  if (!videos.length) return { passed: [], blocked: [] };
+  const resp = await fetch('/api/videos/screen', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ videos, playlistFilters }),
+  });
+  if (!resp.ok) return { passed: videos, blocked: [] }; // fail-open
+  return resp.json(); // { passed[], blocked[], isBlocked?, reason? }
+}
+
+// Grow playlist with new videos (context-aware, all server-side)
+async function apiGrowPlaylist(params) {
+  const resp = await fetch('/api/videos/grow', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  if (!resp.ok) throw new Error(`Grow API error ${resp.status}`);
+  return resp.json(); // { videos[], filtered }
+}
+
+// Pick next Liam TV video (taste-based, all server-side)
+async function apiNextVideo(taste, played, playlistFilters, sessionSize) {
+  const resp = await fetch('/api/videos/next', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ taste, played: [...played], playlistFilters, sessionSize }),
+  });
+  if (!resp.ok) throw new Error(`Next API error ${resp.status}`);
+  return resp.json(); // { video, query, reason }
+}
+
+// Fetch video metadata by ID
+async function apiVideoMeta(id) {
+  const resp = await fetch(`/api/videos/meta?id=${encodeURIComponent(id)}`);
+  if (!resp.ok) return { id, title: `Video ${id}`, channel: 'YouTube', thumb: `https://img.youtube.com/vi/${id}/mqdefault.jpg` };
+  return resp.json(); // { id, title, channel, thumb }
 }
 
 // Demo playlist (popular kids-safe monster truck content)
@@ -497,19 +514,13 @@ function createNewPlaylist() {
 async function autoNamePlaylist() {
   if (!playlist.length || !currentPlaylistName) return;
   try {
-    const titles = playlist.map(v => v.title).join(', ');
-    const resp = await fetch('/api/anthropic', {
+    const titles = playlist.map(v => v.title);
+    const resp = await fetch('/api/videos/name', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 100,
-        system: 'Generate a short, fun playlist name for a kids TV playlist based on the video titles. Return ONLY a JSON object: {"name": "short-slug", "title": "Display Title with Emoji"}. The slug should be lowercase with hyphens. The title should be 2-4 words with one relevant emoji. Keep it kid-friendly.',
-        messages: [{ role: 'user', content: `Videos: ${titles}` }]
-      })
+      body: JSON.stringify({ titles }),
     });
-    const data = await resp.json();
-    const result = JSON.parse(data.content[0].text.replace(/```json|```/g, '').trim());
+    const result = await resp.json();
     
     // Delete the temp playlist if it was a temp name
     const oldName = currentPlaylistName;
@@ -592,85 +603,25 @@ async function checkAutoGrow() {
   
   autoGrowRunning = true;
   try {
-    // Build context from playlist prompts + top-watched videos
-    const prompts = settings.prompts || [];
     const topWatched = [...playlist]
       .sort((a, b) => (b.weight || 1) - (a.weight || 1))
       .slice(0, 8)
-      .map(v => `"${v.title}" (watched ${v.weight || 1}x)${v.summary ? ': ' + v.summary : ''}`);
-    
-    const existingIds = new Set(playlist.map(v => v.id));
-    
-    const context = [
-      prompts.length ? `Playlist search history: ${prompts.join('; ')}` : '',
-      topWatched.length ? `Most watched videos: ${topWatched.join(', ')}` : '',
-      `Playlist: "${settings.channelName || currentPlaylistName}"`,
-      `Currently has ${playlist.length} videos.`
-    ].filter(Boolean).join('\n');
-    
-    // Ask Claude for search queries
-    const resp = await fetch('/api/anthropic', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 300,
-        system: 'You generate YouTube search queries to grow a kids playlist. Based on the playlist context, generate 5 diverse search queries to find MORE similar videos. Return ONLY a JSON array of search query strings. Keep all content appropriate for a 3-year-old. Vary the queries. NEVER suggest reaction videos, fail compilations, prank videos, clickbait channels, unboxing hauls, Elsagate content, or overstimulation rapid-cut videos.',
-        messages: [{ role: 'user', content: context }]
-      })
-    });
-    const aiData = await resp.json();
-    const queries = JSON.parse(aiData.content[0].text.replace(/```json|```/g, '').trim());
-    
-    // Search YouTube with each query
-    const newVideos = [];
-    for (const q of queries) {
-      if (newVideos.length >= 10) break;
-      try {
-        const r = await fetch(`/api/youtube?endpoint=search&part=snippet&q=${encodeURIComponent(q)}&type=video&safeSearch=strict&videoEmbeddable=true&maxResults=5`);
-        const data = await r.json();
-        for (const item of (data.items || [])) {
-          const id = item.id.videoId;
-          if (!existingIds.has(id) && newVideos.length < 10) {
-            existingIds.add(id);
-            newVideos.push({
-              id,
-              title: item.snippet.title,
-              channel: item.snippet.channelTitle,
-              thumb: item.snippet.thumbnails?.medium?.url || `https://img.youtube.com/vi/${id}/mqdefault.jpg`,
-              summary: '',
-              weight: 0
-            });
-          }
-        }
-      } catch(e) {}
-    }
-    
-    // Screen new videos against content filters before adding
-    const filteredNewVideos = await batchFilterVideos(newVideos, settings.contentFilters || '');
+      .map(v => ({ title: v.title, channel: v.channel, weight: v.weight || 1 }));
 
-    if (filteredNewVideos.length > 0) {
-      // Generate summaries for new videos
-      try {
-        const titles = filteredNewVideos.map(v => v.title).join(', ');
-        const sumResp = await fetch('/api/anthropic', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'claude-sonnet-4-20250514',
-            max_tokens: 500,
-            system: 'Generate very short 5-8 word summaries for each video title. Return ONLY a JSON array of strings, one per video, in order.',
-            messages: [{ role: 'user', content: `Video titles: ${titles}` }]
-          })
-        });
-        const sumData = await sumResp.json();
-        const summaries = JSON.parse(sumData.content[0].text.replace(/```json|```/g, '').trim());
-        filteredNewVideos.forEach((v, i) => { if (summaries[i]) v.summary = summaries[i]; });
-      } catch(e) {}
-      
-      playlist.push(...filteredNewVideos);
+    const result = await apiGrowPlaylist({
+      playlistName: currentPlaylistName,
+      channelTitle: settings.channelName || '',
+      existingIds: playlist.map(v => v.id),
+      searchHistory: settings.prompts || [],
+      topWatched,
+      playlistFilters: settings.contentFilters || '',
+      targetCount: 8,
+    });
+
+    if (result.videos && result.videos.length > 0) {
+      playlist.push(...result.videos);
       pmSavePlaylist();
-      console.log(`Auto-grow: added ${filteredNewVideos.length} videos to ${currentPlaylistName} (${newVideos.length - filteredNewVideos.length} filtered out)`);
+      console.log(`Auto-grow: added ${result.videos.length} videos to ${currentPlaylistName} (${result.filtered || 0} filtered out)`);
     }
   } catch(e) {
     console.warn('Auto-grow failed:', e);
@@ -779,46 +730,19 @@ async function liamTVNext() {
   liamTVLoading = true;
   
   try {
-    // AI generates a search query based on taste
-    const sample = shuffle(liamTVTaste).slice(0, 8);
-    const tasteStr = sample.map(v => `"${v.title}" by ${v.channel}`).join(', ');
-    
-    const resp = await fetch('/api/anthropic', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 150,
-        system: 'You pick YouTube search queries to find kid-safe videos similar to the ones listed. Return ONLY a JSON object: {"query": "search query", "reason": "1-2 word reason"}. Make each query specific and varied. Keep it fresh and age-appropriate for a 3-year-old. NEVER suggest reaction videos, fail compilations, prank videos, clickbait channels, unboxing hauls, Elsagate content, or overstimulation rapid-cut videos.',
-        messages: [{ role: 'user', content: `Kid watches: ${tasteStr}\n\nAlready played ${liamTVPlayed.size} videos this session. Find something ${liamTVPlayed.size === 0 ? 'great to start with' : 'fresh and different'}.` }]
-      })
-    });
-    const aiData = await resp.json();
-    const result = JSON.parse(aiData.content[0].text.replace(/```json|```/g, '').trim());
-    
-    // Search YouTube
-    const ytResp = await fetch(`/api/youtube?endpoint=search&part=snippet&q=${encodeURIComponent(result.query)}&type=video&safeSearch=strict&videoEmbeddable=true&maxResults=10`);
-    const ytData = await ytResp.json();
-    
-    // Build candidates (not already played)
-    const candidates = (ytData.items || [])
-      .filter(item => !liamTVPlayed.has(item.id.videoId))
-      .map(item => ({
-        id: item.id.videoId,
-        title: item.snippet.title,
-        channel: item.snippet.channelTitle,
-        thumb: item.snippet.thumbnails?.medium?.url || `https://img.youtube.com/vi/${item.id.videoId}/mqdefault.jpg`
-      }));
+    const result = await apiNextVideo(
+      liamTVTaste,
+      liamTVPlayed,
+      settings.contentFilters || '',
+      liamTVPlayed.size
+    );
 
-    // Screen candidates against content filters
-    const safe = await batchFilterVideos(candidates, settings.contentFilters || '');
-
-    let picked = safe[0] || null;
+    let picked = result.video || null;
 
     if (!picked) {
-      // All results blocked or already played — try again with different query
+      // Nothing safe found — reset played set and retry
       liamTVLoading = false;
-      if (liamTVPlayed.size > 50) liamTVPlayed.clear(); // Reset after many plays
+      if (liamTVPlayed.size > 50) liamTVPlayed.clear();
       return liamTVNext();
     }
     
@@ -1292,18 +1216,12 @@ function pmSwitchTab(tab) {
 async function pmSearch() {
   const q = document.getElementById('pmSearchInput').value.trim();
   if (!q) return;
-  // Store search prompt for playlist growth
   storeSearchPrompt(q);
-  document.getElementById('pmResults').innerHTML = '<div class="pm-empty">Searching...</div>';
+  document.getElementById('pmResults').innerHTML = '<div class="pm-empty">🛡 Searching & screening...</div>';
   try {
-    const r = await fetch(`/api/youtube?endpoint=search&part=snippet&q=${encodeURIComponent(q)}&type=video&safeSearch=strict&videoEmbeddable=true&maxResults=10`);
-    const data = await r.json();
-    pmSearchResults = (data.items || []).map(item => ({
-      id: item.id.videoId,
-      title: item.snippet.title,
-      channel: item.snippet.channelTitle,
-      thumb: item.snippet.thumbnails?.medium?.url || `https://img.youtube.com/vi/${item.id.videoId}/mqdefault.jpg`
-    }));
+    // Use search API — handles YouTube + filtering server-side
+    const result = await apiSearchVideos(q, settings.contentFilters || '', 12);
+    pmSearchResults = result.videos || [];
     pmResultIdx = 0;
     renderPmResults();
   } catch(e) {
@@ -1314,48 +1232,13 @@ async function pmSearch() {
 async function pmAiSearch() {
   const prompt = document.getElementById('pmAiInput').value.trim();
   if (!prompt) return;
-  // Store AI search prompt for playlist growth
   storeSearchPrompt(prompt);
-  document.getElementById('pmResults').innerHTML = '<div class="pm-empty">🤖 AI is thinking...</div>';
+  document.getElementById('pmResults').innerHTML = '<div class="pm-empty">🤖 AI searching & screening...</div>';
   try {
-    // Get search queries from Claude
-    const claudeResp = await fetch('/api/anthropic', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 500,
-        system: 'You generate YouTube search queries for finding child-safe videos. Return ONLY a JSON array of 4-6 short search query strings, no other text or markdown. NEVER suggest reaction videos, fail compilations, prank videos, clickbait channels, unboxing hauls, Elsagate content, or overstimulation rapid-cut videos.',
-        messages: [{ role: 'user', content: `Generate YouTube search queries for: "${prompt}". Focus on content appropriate for a 3-year-old. Return JSON array only.` }]
-      })
-    });
-    const claudeData = await claudeResp.json();
-    const queries = JSON.parse(claudeData.content[0].text.replace(/```json|```/g, '').trim());
-
-    document.getElementById('pmResults').innerHTML = '<div class="pm-empty">Searching YouTube...</div>';
-
-    const allResults = [];
-    const seen = new Set();
-    for (const q of queries) {
-      try {
-        const r = await fetch(`/api/youtube?endpoint=search&part=snippet&q=${encodeURIComponent(q)}&type=video&safeSearch=strict&videoEmbeddable=true&maxResults=4`);
-        const data = await r.json();
-        for (const item of (data.items || [])) {
-          const id = item.id.videoId;
-          if (!seen.has(id)) {
-            seen.add(id);
-            allResults.push({ id, title: item.snippet.title, channel: item.snippet.channelTitle, thumb: item.snippet.thumbnails?.medium?.url || `https://img.youtube.com/vi/${id}/mqdefault.jpg` });
-          }
-        }
-      } catch(e) {}
-    }
-    // Screen results against content filters
-    document.getElementById('pmResults').innerHTML = '<div class="pm-empty">🛡 Screening results...</div>';
-    const filtered = await batchFilterVideos(allResults, settings.contentFilters || '');
-    const removed = allResults.length - filtered.length;
-    pmSearchResults = filtered;
+    const result = await apiSearchVideos(prompt, settings.contentFilters || '', 16);
+    pmSearchResults = result.videos || [];
     pmResultIdx = 0;
-    if (removed > 0) console.log(`In-player AI search: ${removed} result(s) filtered out`);
+    if (result.filtered > 0) console.log(`In-player AI search: ${result.filtered} result(s) filtered out`);
     renderPmResults();
   } catch(e) {
     document.getElementById('pmResults').innerHTML = '<div class="pm-empty">AI search failed</div>';
