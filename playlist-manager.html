@@ -234,13 +234,16 @@ select option{background:#1c1c2e}
         </div>
         <div class="divider"></div>
         <div class="section-title" style="font-size:15px;margin-bottom:8px"><span>🚫</span> Content Filters</div>
-        <div class="hint" style="margin-bottom:12px">Describe what to block. AI Search will avoid these, and manual URL adds will be screened against them.</div>
+        <div style="background:rgba(255,107,53,0.07);border:1px solid rgba(255,107,53,0.2);border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:13px;color:var(--muted);line-height:1.6">
+          <strong style="color:var(--orange)">🛡 Global rules always active:</strong> reaction videos, fail/pain compilations, prank videos, clickbait formats, influencer drama, Elsagate content, overstimulation rapid-cut videos, unboxing hauls, adults imitating cartoon characters, animals in distress content.
+        </div>
+        <div class="hint" style="margin-bottom:10px">Add extra rules specific to <em>this playlist</em> (optional). Plain English.</div>
         <textarea id="contentFilters"
-          placeholder="e.g. fail videos, reaction videos, people reacting to other videos, cat videos, dog videos, scary content, loud jump scares, clickbait thumbnails"
+          placeholder="e.g. cat videos, dog videos, any cartoons, only real vehicles"
           oninput="saveSettings()"
           class="filters-textarea"
           style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;padding:12px 14px;outline:none;resize:vertical;min-height:90px;transition:border-color 0.2s;line-height:1.5"></textarea>
-        <div class="hint" style="margin-top:8px">💡 Plain English works great: "no reaction channels", "avoid anything scary or loud"</div>
+        <div class="hint" style="margin-top:8px">💡 Example: "no animated content, only real cars and trucks", "no animals at all, just machines"</div>
         <div class="divider"></div>
         <div class="section-title" style="font-size:15px;margin-bottom:12px"><span>🌙</span> Default Sleep Timer</div>
         <div class="hint" style="margin-bottom:12px">Screen fades over last 5 minutes</div>
@@ -280,6 +283,26 @@ select option{background:#1c1c2e}
 <div class="toast" id="toast"></div>
 
 <script>
+// ─── GLOBAL CONTENT BASELINE ───
+// Applied to ALL playlists, every search, every manual add.
+// Based on known YouTube engagement-bait patterns, Elsagate research, and
+// algorithmic toxic content categories documented in child safety studies.
+const GLOBAL_CONTENT_FILTERS = `
+REACTION CONTENT: videos where the main content is a person or group watching and reacting to other videos; "reaction" channels; commentary channels whose primary format is reacting
+FAIL & PAIN CONTENT: fail compilations, people or animals getting hurt, painful accidents filmed for laughs, "epic fail" videos, blooper reels involving injury or humiliation
+CHALLENGE VIDEOS: dangerous or embarrassing challenge trends (ice bucket evolved into harmful variants, Tide pod, skull breaker, etc.); "I did X challenge" formats that are attention-engineered
+PRANK VIDEOS: pranks played on people, hidden camera pranks, "prank gone wrong", fake scare pranks, psychological manipulation framed as humor
+CLICKBAIT FORMATS: titles containing "GONE WRONG", "EXTREME", "YOU WON'T BELIEVE", "GONE SEXUAL", "NOT CLICKBAIT", "I'M LEAVING", "WE NEED TO TALK", "EXPOSED", "SHOCKING"; videos where thumbnail shows exaggerated shock/crying/screaming faces with arrows or circles pointing at things
+DRAMA & BEEF: creator drama, "responding to hate", "calling out", feuds between influencers, emotional manipulation ("I have something to tell you...", "I'm quitting YouTube")
+UNBOXING & HAUL CONTENT: unboxing luxury items, toy haul videos from influencer channels, "mystery box" videos, sponsor-disguised content presented as entertainment
+ELSAGATE-STYLE CONTENT: adults dressed as or imitating cartoon characters (Spider-Man, Elsa, etc.) in live action skits not made by the IP owner; fast-cut nursery rhyme videos with violent or disturbing themes disguised as kids content; videos that superficially look like kids content but contain adult themes
+OVERSTIMULATION CONTENT: videos with relentless rapid-fire cuts every 1-2 seconds, constant screaming/yelling presenters, extreme sound effects used to keep toddlers in a trance-like state; "brain rot" short-form content repurposed as long videos
+INFLUENCER PROMOTION: YouTubers promoting their own merch, "check the description", "link in bio", channels that exist primarily to sell products to children or their parents
+TOP-N COMPILATIONS: "Top 10 scariest", "Top 5 most dangerous", countdown format videos designed purely for algorithm performance with no educational value
+COMMENT BAIT: videos ending with "comment below if you want part 2", "smash the like button or this happens", manipulation of children's behavior through fake consequences
+ANIMALS IN DISTRESS: videos framing animal suffering, animal fights, or animals in dangerous situations as entertaining content, even if presented as "funny"
+`.trim();
+
 // STATE
 let currentPlaylistName = null;
 let playlist = [];
@@ -494,15 +517,13 @@ async function addUrl() {
 
   const video = await fetchVideoMeta(id);
 
-  // Screen against content filters if set
-  if (settings.contentFilters) {
-    const blocked = await isBlockedByFilters(video.title, video.channel, settings.contentFilters);
-    if (blocked.result) {
-      addBtn.innerHTML = '+ Add';
-      addBtn.disabled = false;
-      showToast('🚫 Blocked: ' + blocked.reason, 'error');
-      return;
-    }
+  // Always screen — global baseline + playlist filters
+  const blocked = await isBlockedByFilters(video.title, video.channel, settings.contentFilters || '');
+  if (blocked.result) {
+    addBtn.innerHTML = '+ Add';
+    addBtn.disabled = false;
+    showToast('🚫 Blocked: ' + blocked.reason, 'error');
+    return;
   }
 
   addBtn.innerHTML = '+ Add';
@@ -513,21 +534,31 @@ async function addUrl() {
   showToast('Added: ' + video.title.slice(0,40), 'success');
 }
 
+// Build the combined filter string (global baseline + per-playlist additions)
+function buildFilterPrompt(playlistFilters) {
+  const parts = ['=== GLOBAL RULES (always apply) ===\n' + GLOBAL_CONTENT_FILTERS];
+  if (playlistFilters && playlistFilters.trim()) {
+    parts.push('=== ADDITIONAL RULES FOR THIS PLAYLIST ===\n' + playlistFilters.trim());
+  }
+  return parts.join('\n\n');
+}
+
 // Screen a single video title/channel against content filters
-async function isBlockedByFilters(title, channel, filters) {
+async function isBlockedByFilters(title, channel, playlistFilters) {
   try {
+    const filterPrompt = buildFilterPrompt(playlistFilters);
     const resp = await fetch('/api/anthropic', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
         model: 'claude-haiku-4-20250514',
-        max_tokens: 60,
-        system: 'You screen YouTube videos for a parent. Reply with JSON only: {"blocked": true/false, "reason": "short reason or empty string"}. No other text.',
+        max_tokens: 80,
+        system: 'You screen YouTube videos for a parent protecting a 3-year-old. Reply with JSON only: {"blocked": true/false, "reason": "short reason or empty string"}. No other text.',
         messages: [{role:'user', content:
-          'Content filters (block if matches any): ' + filters + '\n\n' +
+          filterPrompt + '\n\n' +
           'Video title: ' + title + '\n' +
           'Channel: ' + channel + '\n\n' +
-          'Is this video blocked by the filters?'
+          'Is this video blocked by any of the above rules?'
         }]
       })
     });
@@ -591,8 +622,9 @@ function removeVideo(i) {
 
 // ─── BATCH FILTER (for AI search results) ───
 // Sends all titles to Claude in one call for efficiency
-async function batchFilterResults(videos, filters) {
+async function batchFilterResults(videos, playlistFilters) {
   try {
+    const filterPrompt = buildFilterPrompt(playlistFilters);
     const list = videos.map((v, i) => (i+1) + '. [' + v.channel + '] ' + v.title).join('\n');
     const resp = await fetch('/api/anthropic', {
       method: 'POST',
@@ -600,11 +632,11 @@ async function batchFilterResults(videos, filters) {
       body: JSON.stringify({
         model: 'claude-haiku-4-20250514',
         max_tokens: 300,
-        system: 'You screen YouTube videos for a parent. Given a numbered list of videos and content filters, return ONLY a JSON array of the numbers (1-based) that should be BLOCKED. Example: [2,5,7]. If none blocked, return []. No other text.',
+        system: 'You screen YouTube videos for a parent protecting a 3-year-old. Given a numbered list of videos and content filter rules, return ONLY a JSON array of the numbers (1-based) that should be BLOCKED. Example: [2,5,7]. If none blocked, return []. No other text.',
         messages: [{role:'user', content:
-          'Content filters (block if matches any): ' + filters + '\n\n' +
+          filterPrompt + '\n\n' +
           'Videos:\n' + list + '\n\n' +
-          'Which video numbers are blocked by these filters? Return JSON array only.'
+          'Which video numbers are blocked by any of the above rules? Return JSON array only.'
         }]
       })
     });
@@ -631,9 +663,9 @@ async function aiSearch() {
 
   const filters = settings.contentFilters || '';
   try {
-    const filterInstruction = filters
-      ? '\n\nCONTENT FILTERS — avoid anything matching: ' + filters
-      : '';
+    const filterInstruction = '\n\nCONTENT FILTERS — always avoid: reaction videos, fail/pain compilations, prank videos, clickbait formats (GONE WRONG, EXTREME, YOU WON\'T BELIEVE), drama/beef content, Elsagate-style content, overstimulation rapid-cut videos, influencer merch promotion, unboxing haul channels, adults imitating cartoon characters in low-quality skits'
+      + (filters ? '. Also avoid: ' + filters : '') + '.';
+
     const claudeResp = await fetch('/api/anthropic', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
@@ -670,16 +702,14 @@ async function aiSearch() {
       } catch(e) {}
     }
 
-    // Batch-filter results against content filters if set
+    // Always batch-filter — global baseline applies even with no per-playlist filters
     let filteredResults = allResults;
-    if (filters && allResults.length > 0) {
+    if (allResults.length > 0) {
       document.getElementById('aiStatus').innerHTML = '<div class="loading-row"><div class="spinner"></div> Screening ' + allResults.length + ' videos against content filters...</div>';
       filteredResults = await batchFilterResults(allResults, filters);
       const removed = allResults.length - filteredResults.length;
-      const filterNote = removed > 0 ? ' <span style="color:var(--muted)">(' + removed + ' blocked by filters)</span>' : '';
-      document.getElementById('aiStatus').innerHTML = '<div style="color:var(--green);font-size:13px;padding:8px 0">✓ ' + filteredResults.length + ' videos passed filters.' + filterNote + ' Tap to select.</div>';
-    } else {
-      document.getElementById('aiStatus').innerHTML = '<div style="color:var(--green);font-size:13px;padding:8px 0">✓ Found ' + allResults.length + ' videos. Tap to select.</div>';
+      const filterNote = removed > 0 ? ' <span style="color:var(--muted)">(' + removed + ' filtered out)</span>' : '';
+      document.getElementById('aiStatus').innerHTML = '<div style="color:var(--green);font-size:13px;padding:8px 0">✓ ' + filteredResults.length + ' videos passed screening.' + filterNote + ' Tap to select.</div>';
     }
 
     searchResultCache = filteredResults;
