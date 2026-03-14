@@ -168,8 +168,7 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
 .pm-item-info{flex:1;min-width:0}
 .pm-item-title{font-size:13px;font-weight:600;color:rgba(255,255,255,.85);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pm-item-ch{font-size:11px;color:rgba(255,255,255,.3);margin-top:2px}
-.pm-item-actions{display:flex;gap:4px;opacity:0;transition:opacity .15s}
-.pm-item.focused .pm-item-actions{opacity:1}
+.pm-item-actions{display:flex;gap:4px;opacity:1}
 .pm-item-btn{font-size:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:4px 8px;color:rgba(255,255,255,.5);cursor:pointer}
 .pm-item-btn.focused{color:white;border-color:rgba(255,255,255,.4);background:rgba(255,255,255,.15)}
 .pm-item-btn.del{color:#ff6b6b;border-color:rgba(255,100,100,.2)}
@@ -332,6 +331,11 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
       </div>
     </div>
     <div id="pmSettingsPanel" style="display:none;padding:16px;overflow-y:auto;flex:1;position:relative;z-index:2;-webkit-overflow-scrolling:touch">
+      <div style="font-family:'Fredoka One',cursive;font-size:15px;color:white;margin-bottom:8px">🔀 Play Order</div>
+      <div style="display:flex;gap:8px;margin-bottom:20px">
+        <button id="pmShuffleOn" onclick="pmSetPlayOrder('shuffle')" style="flex:1;padding:12px;font-family:'Fredoka One',cursive;font-size:14px;border-radius:10px;border:2px solid #ff6b35;cursor:pointer;transition:all .15s">🔀 Shuffle</button>
+        <button id="pmShuffleOff" onclick="pmSetPlayOrder('sequence')" style="flex:1;padding:12px;font-family:'Fredoka One',cursive;font-size:14px;border-radius:10px;border:2px solid rgba(255,255,255,.15);cursor:pointer;transition:all .15s">➡️ Sequential</button>
+      </div>
       <div style="font-family:'Fredoka One',cursive;font-size:15px;color:white;margin-bottom:8px">🚫 Content Filters</div>
       <div style="background:rgba(255,107,53,0.07);border:1px solid rgba(255,107,53,0.2);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:rgba(255,255,255,.5);line-height:1.5">
         <strong style="color:#ff6b35">🛡 Always blocked:</strong> reaction videos, fail/pain compilations, pranks, clickbait, influencer drama, Elsagate, overstimulation rapid-cut, unboxing hauls, adults imitating cartoons, animals in distress.
@@ -396,7 +400,7 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
 <script>
 // ──────────────────────────── STATE ────────────────────────────
 let playlist = [];
-let settings = { channelName: '🚛 Liam TV', playOrder: 'sequence', sleepTimer: 30 };
+let settings = { channelName: '🚛 Liam TV', playOrder: 'shuffle', sleepTimer: 30 };
 let currentIdx = 0;
 let ytPlayer = null;
 let ytReady = false;
@@ -647,11 +651,11 @@ function shuffle(arr) { return [...arr].sort(() => Math.random() - .5); }
 // ──────────────────────────── AUTO-GROW PLAYLIST ────────────────────────────
 let autoGrowRunning = false;
 
-async function checkAutoGrow() {
+async function checkAutoGrow(force) {
   // Only auto-grow named playlists (not Liam TV mode, not temp playlists)
   if (liamTVMode || !currentPlaylistName || currentPlaylistName.startsWith('_')) return;
   const remaining = playlist.length - currentIdx - 1;
-  if (remaining > 5 || autoGrowRunning) return;
+  if (!force && (remaining > 5 || autoGrowRunning)) return;
   
   autoGrowRunning = true;
   try {
@@ -698,6 +702,7 @@ let liamTVFilling = false;      // prevent concurrent fill calls
 let liamTVHistory = [];         // full history objects [{id,title,channel,thumb,watchCount,skipCount,lastWatched}]
 const LIAMTV_QUEUE_TARGET = 10; // fill up to this many
 const LIAMTV_QUEUE_REFILL = 5;  // refill when queue drops to this
+let consecutiveSkips = 0;       // track rapid skips for shuffle refill
 
 // LiamTV curation settings (per-playlist, stored in settings blob)
 // settings.minWatchCount  — rotation threshold before full-discovery (default 3)
@@ -1078,7 +1083,25 @@ function nextVideo() {
     return;
   }
   if (settings.playOrder === 'repeat1') { ytPlayer?.seekTo(0); ytPlayer?.playVideo(); return; }
-  currentIdx = (currentIdx + 1) % playlist.length;
+  // Track consecutive skips (<10s watch) in shuffle mode
+  const watchedMs = Date.now() - (watchStartTime || Date.now());
+  if (watchedMs < 10000) {
+    consecutiveSkips++;
+    if (consecutiveSkips >= 5 && (settings.playOrder || 'shuffle') === 'shuffle') {
+      console.log('5 consecutive skips in shuffle — triggering queue refill');
+      consecutiveSkips = 0;
+      checkAutoGrow(true);
+    }
+  } else {
+    consecutiveSkips = 0;
+  }
+  if ((settings.playOrder || 'shuffle') === 'shuffle' && playlist.length > 1) {
+    let next = currentIdx;
+    while (next === currentIdx) next = Math.floor(Math.random() * playlist.length);
+    currentIdx = next;
+  } else {
+    currentIdx = (currentIdx + 1) % playlist.length;
+  }
   loadCurrentVideo();
 }
 
@@ -1383,6 +1406,20 @@ function pmSwitchTab(tab) {
 function pmLoadSettings() {
   document.getElementById('pmContentFilters').value = settings.contentFilters || '';
   document.getElementById('pmParentDirection').value = settings.parentDirection || '';
+  pmUpdatePlayOrderUI();
+}
+function pmSetPlayOrder(order) {
+  settings.playOrder = order;
+  pmUpdatePlayOrderUI();
+}
+function pmUpdatePlayOrderUI() {
+  const isShuffle = (settings.playOrder || 'shuffle') === 'shuffle';
+  document.getElementById('pmShuffleOn').style.background = isShuffle ? '#ff6b35' : 'transparent';
+  document.getElementById('pmShuffleOn').style.color = isShuffle ? 'white' : 'rgba(255,255,255,.5)';
+  document.getElementById('pmShuffleOn').style.borderColor = '#ff6b35';
+  document.getElementById('pmShuffleOff').style.background = !isShuffle ? '#ff6b35' : 'transparent';
+  document.getElementById('pmShuffleOff').style.color = !isShuffle ? 'white' : 'rgba(255,255,255,.5)';
+  document.getElementById('pmShuffleOff').style.borderColor = !isShuffle ? '#ff6b35' : 'rgba(255,255,255,.15)';
 }
 async function pmSaveSettings() {
   settings.contentFilters = document.getElementById('pmContentFilters').value.trim();
