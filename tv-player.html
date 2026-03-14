@@ -331,19 +331,19 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
         <button class="pm-search-btn" id="pmAiBtn" onclick="pmAiSearch()">🤖 Find</button>
       </div>
     </div>
-    <div id="pmSettingsPanel" style="display:none;padding:16px;overflow-y:auto;max-height:calc(100vh - 120px)">
+    <div id="pmSettingsPanel" style="display:none;padding:16px;overflow-y:auto;flex:1;position:relative;z-index:2;-webkit-overflow-scrolling:touch">
       <div style="font-family:'Fredoka One',cursive;font-size:15px;color:white;margin-bottom:8px">🚫 Content Filters</div>
       <div style="background:rgba(255,107,53,0.07);border:1px solid rgba(255,107,53,0.2);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:rgba(255,255,255,.5);line-height:1.5">
         <strong style="color:#ff6b35">🛡 Always blocked:</strong> reaction videos, fail/pain compilations, pranks, clickbait, influencer drama, Elsagate, overstimulation rapid-cut, unboxing hauls, adults imitating cartoons, animals in distress.
       </div>
       <div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:8px">Add extra rules for <em>this playlist</em> (optional):</div>
       <textarea id="pmContentFilters" placeholder="e.g. no cartoons, only real vehicles, no cat videos"
-        style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:white;font-family:'DM Sans',sans-serif;font-size:14px;padding:12px;outline:none;resize:vertical;min-height:80px;line-height:1.5;box-sizing:border-box"></textarea>
+        style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:white;font-family:'DM Sans',sans-serif;font-size:16px;padding:12px;outline:none;resize:vertical;min-height:80px;line-height:1.5;box-sizing:border-box;-webkit-user-select:text;user-select:text"></textarea>
       <div style="height:20px"></div>
       <div style="font-family:'Fredoka One',cursive;font-size:15px;color:white;margin-bottom:8px">🎯 Parent Direction</div>
       <div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:8px">Guides ALL new video discovery. Leave blank for pure taste-based discovery.</div>
       <textarea id="pmParentDirection" placeholder="e.g. Focus on learning numbers and counting through fun play videos"
-        style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:white;font-family:'DM Sans',sans-serif;font-size:14px;padding:12px;outline:none;resize:vertical;min-height:80px;line-height:1.5;box-sizing:border-box"></textarea>
+        style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:white;font-family:'DM Sans',sans-serif;font-size:16px;padding:12px;outline:none;resize:vertical;min-height:80px;line-height:1.5;box-sizing:border-box;-webkit-user-select:text;user-select:text"></textarea>
       <div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.18);border-radius:10px;padding:12px;margin-top:12px">
         <div style="font-size:11px;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">💡 Example directions</div>
         <div style="font-size:12px;color:rgba(255,255,255,.5);line-height:1.6">
