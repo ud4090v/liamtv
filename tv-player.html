@@ -1689,7 +1689,7 @@ if ('serviceWorker' in navigator) {
 
 // iOS PWA install banner
 (function() {
-  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const isSafari = /safari/i.test(navigator.userAgent) && !/chrome|crios|fxios/i.test(navigator.userAgent);
   const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
   const dismissed = localStorage.getItem('iosBannerDismissed');
