@@ -376,7 +376,7 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
     <div class="home-loading">Loading playlists...</div>
   </div>
   <button class="home-new-btn" onclick="createNewPlaylist()">+ New Playlist</button>
-  <button class="home-exit-btn" onclick="exitApp()">✕ Exit</button>
+  <button class="home-exit-btn" id="exitBtn" onclick="exitApp()">✕ Exit</button>
   <div id="iosBanner" style="display:none;position:fixed;bottom:0;left:0;right:0;background:rgba(11,11,20,0.97);border-top:2px solid #ff6b35;padding:16px 20px;z-index:999;backdrop-filter:blur(16px);animation:iosBannerSlide .3s ease-out">
     <div style="display:flex;align-items:flex-start;gap:14px;max-width:480px;margin:0 auto">
       <div style="font-size:36px;flex-shrink:0">🚛</div>
@@ -1695,6 +1695,15 @@ if ('serviceWorker' in navigator) {
   const dismissed = localStorage.getItem('iosBannerDismissed');
   if (isIos && isSafari && !isStandalone && !dismissed) {
     setTimeout(() => { document.getElementById('iosBanner').style.display = 'block'; }, 2000);
+  }
+})();
+// Hide exit button on iOS/PWA (no window.close support)
+(function() {
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const hasNativeBridge = window.LiamTV && window.LiamTV.exit;
+  if (isIos && !hasNativeBridge) {
+    const btn = document.getElementById('exitBtn');
+    if (btn) btn.style.display = 'none';
   }
 })();
 function dismissIosBanner() {
