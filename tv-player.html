@@ -1586,6 +1586,7 @@ document.addEventListener('keydown', e => {
   if (pmOpen) {
     const inInput = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
     if (e.key === 'Escape' || (e.key === 'Backspace' && !inInput)) { closePlaylistMgr(); e.preventDefault(); return; }
+    if (inInput && pmActiveTab === 'settings') return; // Let settings textareas handle all input
     if (pmFocus === 'list') {
       if (e.key === 'ArrowUp') pmListIdx = Math.max(0, pmListIdx - 1);
       else if (e.key === 'ArrowDown') pmListIdx = Math.min(playlist.length - 1, pmListIdx + 1);
