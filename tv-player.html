@@ -314,8 +314,9 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
   </div>
   <div class="pm-main">
     <div class="pm-tabs">
-      <div class="pm-tab active" id="pmTabSearch" onclick="pmSwitchTab('search')">🔍 Search YouTube</div>
-      <div class="pm-tab" id="pmTabAi" onclick="pmSwitchTab('ai')">🤖 AI Search</div>
+      <div class="pm-tab active" id="pmTabSearch" onclick="pmSwitchTab('search')">🔍 Search</div>
+      <div class="pm-tab" id="pmTabAi" onclick="pmSwitchTab('ai')">🤖 AI</div>
+      <div class="pm-tab" id="pmTabSettings" onclick="pmSwitchTab('settings')">⚙️ Settings</div>
     </div>
     <div class="pm-search" id="pmSearchPanel">
       <div class="pm-search-row">
@@ -327,6 +328,30 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
       <div class="pm-search-row">
         <input class="pm-search-input" id="pmAiInput" placeholder="Describe what to find... e.g. 'monster truck stunts for toddlers'"/>
         <button class="pm-search-btn" id="pmAiBtn" onclick="pmAiSearch()">🤖 Find</button>
+      </div>
+    </div>
+    <div id="pmSettingsPanel" style="display:none;padding:16px;overflow-y:auto;max-height:calc(100vh - 120px)">
+      <div style="font-family:'Fredoka One',cursive;font-size:15px;color:white;margin-bottom:8px">🚫 Content Filters</div>
+      <div style="background:rgba(255,107,53,0.07);border:1px solid rgba(255,107,53,0.2);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:rgba(255,255,255,.5);line-height:1.5">
+        <strong style="color:#ff6b35">🛡 Always blocked:</strong> reaction videos, fail/pain compilations, pranks, clickbait, influencer drama, Elsagate, overstimulation rapid-cut, unboxing hauls, adults imitating cartoons, animals in distress.
+      </div>
+      <div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:8px">Add extra rules for <em>this playlist</em> (optional):</div>
+      <textarea id="pmContentFilters" placeholder="e.g. no cartoons, only real vehicles, no cat videos"
+        style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:white;font-family:'DM Sans',sans-serif;font-size:14px;padding:12px;outline:none;resize:vertical;min-height:80px;line-height:1.5;box-sizing:border-box"
+        oninput="pmSaveSettings()"></textarea>
+      <div style="height:20px"></div>
+      <div style="font-family:'Fredoka One',cursive;font-size:15px;color:white;margin-bottom:8px">🎯 Parent Direction</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:8px">Guides ALL new video discovery. Leave blank for pure taste-based discovery.</div>
+      <textarea id="pmParentDirection" placeholder="e.g. Focus on learning numbers and counting through fun play videos"
+        style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:white;font-family:'DM Sans',sans-serif;font-size:14px;padding:12px;outline:none;resize:vertical;min-height:80px;line-height:1.5;box-sizing:border-box"
+        oninput="pmSaveSettings()"></textarea>
+      <div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.18);border-radius:10px;padding:12px;margin-top:12px">
+        <div style="font-size:11px;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">💡 Example directions</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.5);line-height:1.6">
+          • "Focus on math and counting skills"<br>
+          • "Encourage curiosity about nature and animals"<br>
+          • "Bilingual content — mix English and Spanish"
+        </div>
       </div>
     </div>
     <div class="pm-results" id="pmResults">
@@ -1335,8 +1360,20 @@ function pmSwitchTab(tab) {
   pmActiveTab = tab;
   document.getElementById('pmTabSearch').classList.toggle('active', tab === 'search');
   document.getElementById('pmTabAi').classList.toggle('active', tab === 'ai');
+  document.getElementById('pmTabSettings').classList.toggle('active', tab === 'settings');
   document.getElementById('pmSearchPanel').style.display = tab === 'search' ? 'block' : 'none';
   document.getElementById('pmAiPanel').style.display = tab === 'ai' ? 'block' : 'none';
+  document.getElementById('pmSettingsPanel').style.display = tab === 'settings' ? 'block' : 'none';
+  document.getElementById('pmResults').style.display = tab === 'settings' ? 'none' : 'block';
+  if (tab === 'settings') pmLoadSettings();
+}
+function pmLoadSettings() {
+  document.getElementById('pmContentFilters').value = settings.contentFilters || '';
+  document.getElementById('pmParentDirection').value = settings.parentDirection || '';
+}
+function pmSaveSettings() {
+  settings.contentFilters = document.getElementById('pmContentFilters').value.trim();
+  settings.parentDirection = document.getElementById('pmParentDirection').value.trim();
 }
 
 async function pmSearch() {
@@ -1544,7 +1581,7 @@ document.addEventListener('keydown', e => {
         // Let the input handle all normal typing — only intercept navigation keys
         if (e.key === 'Escape') { document.activeElement.blur(); pmFocus = 'list'; renderPmList(); }
         else if (e.key === 'ArrowDown' && e.altKey === false) { pmFocus = 'results'; pmResultIdx = 0; document.activeElement.blur(); renderPmResults(); }
-        else if (e.key === 'Tab') { e.preventDefault(); pmSwitchTab(pmActiveTab === 'search' ? 'ai' : 'search'); document.getElementById(pmActiveTab === 'search' ? 'pmSearchInput' : 'pmAiInput').focus(); }
+        else if (e.key === 'Tab') { e.preventDefault(); const tabs = ['search','ai','settings']; const next = tabs[(tabs.indexOf(pmActiveTab)+1)%3]; pmSwitchTab(next); if(next==='search')document.getElementById('pmSearchInput').focus(); else if(next==='ai')document.getElementById('pmAiInput').focus(); }
         else return; // Let input handle typing, backspace, etc.
       } else {
         if (e.key === 'ArrowLeft') { pmFocus = 'list'; renderPmList(); }
