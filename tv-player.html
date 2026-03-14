@@ -205,6 +205,7 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
 .setup-steps strong{color:rgba(255,255,255,.8)}
 .start-btn{font-family:'Fredoka One',cursive;font-size:clamp(20px,4vw,36px);background:linear-gradient(135deg,#ff6b35,#ffd700);color:#1a0000;border:none;border-radius:18px;padding:16px 56px;cursor:pointer;box-shadow:0 8px 0 #8b2000;transition:transform .1s;animation:btnPulse 2s ease-in-out infinite}
 @keyframes btnPulse{0%,100%{box-shadow:0 8px 0 #8b2000,0 0 0 0 rgba(255,107,53,0)}50%{box-shadow:0 8px 0 #8b2000,0 0 0 12px rgba(255,107,53,0)}}
+@keyframes iosBannerSlide{from{transform:translateY(100%)}to{transform:translateY(0)}}
 .start-btn:active{transform:scale(.94)}
 .setup-hint{color:rgba(255,255,255,.2);font-size:clamp(11px,1.8vw,15px);margin-top:14px}
 </style>
@@ -376,6 +377,18 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
   </div>
   <button class="home-new-btn" onclick="createNewPlaylist()">+ New Playlist</button>
   <button class="home-exit-btn" onclick="exitApp()">✕ Exit</button>
+  <div id="iosBanner" style="display:none;position:fixed;bottom:0;left:0;right:0;background:rgba(11,11,20,0.97);border-top:2px solid #ff6b35;padding:16px 20px;z-index:999;backdrop-filter:blur(16px);animation:iosBannerSlide .3s ease-out">
+    <div style="display:flex;align-items:flex-start;gap:14px;max-width:480px;margin:0 auto">
+      <div style="font-size:36px;flex-shrink:0">🚛</div>
+      <div style="flex:1">
+        <div style="font-family:'Fredoka One',cursive;font-size:15px;color:white;margin-bottom:6px">Install Liam TV</div>
+        <div style="font-size:13px;color:rgba(255,255,255,.6);line-height:1.5">
+          Tap <span style="display:inline-block;border:1px solid rgba(255,255,255,.3);border-radius:4px;padding:1px 6px;font-size:12px;vertical-align:middle">⬆ Share</span> then <strong style="color:white">"Add to Home Screen"</strong> for the full app experience!
+        </div>
+      </div>
+      <div onclick="dismissIosBanner()" style="color:rgba(255,255,255,.4);font-size:22px;cursor:pointer;padding:4px 8px;flex-shrink:0">✕</div>
+    </div>
+  </div>
 </div>
 
 <!-- YouTube IFrame API -->
@@ -1672,6 +1685,21 @@ document.getElementById('pmAiInput')?.addEventListener('focus', () => { if (pmOp
 // Register service worker for PWA / native app support
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
+// iOS PWA install banner
+(function() {
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isSafari = /safari/i.test(navigator.userAgent) && !/chrome|crios|fxios/i.test(navigator.userAgent);
+  const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+  const dismissed = localStorage.getItem('iosBannerDismissed');
+  if (isIos && isSafari && !isStandalone && !dismissed) {
+    setTimeout(() => { document.getElementById('iosBanner').style.display = 'block'; }, 2000);
+  }
+})();
+function dismissIosBanner() {
+  document.getElementById('iosBanner').style.display = 'none';
+  localStorage.setItem('iosBannerDismissed', '1');
 }
 </script>
 </body>
