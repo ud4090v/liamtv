@@ -1377,16 +1377,17 @@ function pmSwitchTab(tab) {
   document.getElementById('pmSearchPanel').style.display = tab === 'search' ? 'block' : 'none';
   document.getElementById('pmAiPanel').style.display = tab === 'ai' ? 'block' : 'none';
   document.getElementById('pmSettingsPanel').style.display = tab === 'settings' ? 'block' : 'none';
-  document.getElementById('pmResults').style.display = tab === 'settings' ? 'none' : 'block';
+  document.getElementById('pmResults').style.display = tab === 'settings' ? 'none' : '';
   if (tab === 'settings') pmLoadSettings();
 }
 function pmLoadSettings() {
   document.getElementById('pmContentFilters').value = settings.contentFilters || '';
   document.getElementById('pmParentDirection').value = settings.parentDirection || '';
 }
-function pmSaveSettings() {
+async function pmSaveSettings() {
   settings.contentFilters = document.getElementById('pmContentFilters').value.trim();
   settings.parentDirection = document.getElementById('pmParentDirection').value.trim();
+  await pmSavePlaylist();
   const confirm = document.getElementById('pmSaveConfirm');
   confirm.style.display = 'block';
   setTimeout(() => { confirm.style.display = 'none'; }, 2000);
