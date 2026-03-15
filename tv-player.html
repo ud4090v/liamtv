@@ -1170,8 +1170,9 @@ function startTimer(minutes) {
       // Progress: 0 (fade just started) → 1 (timer done)
       const progress = 1 - (timerSeconds / fadeDuration);
       
-      // Linear fade — even rate from start to finish
-      const eased = progress;
+      // Perceptual linear fade — compensates for non-linear brightness perception
+      // Maps linear progress to perceptually even dimming
+      const eased = Math.pow(progress, 0.5);
       
       // Screen dim: 0 → 0.95
       currentDim = Math.min(0.95, eased * 0.95);
