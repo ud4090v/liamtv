@@ -24,15 +24,13 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
 #dimOverlay{position:fixed;inset:0;z-index:5;background:black;opacity:0;pointer-events:none;transition:opacity 2s ease}
 
 /* ── GOODNIGHT SCREEN ── */
-#goodnightScreen{position:fixed;inset:0;z-index:20;background:#050510;display:none;flex-direction:column;align-items:center;justify-content:center;gap:20px}
+#goodnightScreen{position:fixed;inset:0;z-index:20;background:#050510;display:none;align-items:center;justify-content:center}
 .gn-stars{position:absolute;inset:0}
 .gn-star{position:absolute;border-radius:50%;background:white;animation:gnTwinkle linear infinite}
 @keyframes gnTwinkle{0%,100%{opacity:.1}50%{opacity:.8}}
-.gn-truck{font-size:100px;animation:gnFloat 3s ease-in-out infinite alternate;position:relative;z-index:1;filter:drop-shadow(0 0 40px rgba(100,100,255,0.5))}
-@keyframes gnFloat{from{transform:translateY(0) rotate(-4deg)}to{transform:translateY(-20px) rotate(4deg)}}
-.gn-title{font-family:'Fredoka One',cursive;font-size:clamp(40px,8vw,80px);color:rgba(180,180,255,0.9);text-align:center;position:relative;z-index:1;text-shadow:0 0 60px rgba(100,100,255,0.6);line-height:1.2}
-.gn-sub{font-family:'Fredoka One',cursive;font-size:clamp(20px,4vw,36px);color:rgba(255,255,255,0.3);text-align:center;position:relative;z-index:1}
-.gn-wake{font-size:clamp(12px,2vw,18px);color:rgba(255,255,255,0.15);position:fixed;bottom:24px;text-align:center;width:100%}
+.gn-msg{position:absolute;font-family:'Fredoka One',cursive;font-size:clamp(24px,5vw,48px);color:rgba(180,180,255,0.8);text-align:center;z-index:1;opacity:0;animation:gnMsgFade 8s ease-in-out forwards}
+@keyframes gnMsgFade{0%{opacity:0}15%{opacity:1}70%{opacity:1}100%{opacity:0}}
+.gn-wake{font-size:clamp(10px,1.5vw,14px);color:rgba(255,255,255,0.1);position:fixed;bottom:20px;text-align:center;width:100%}
 
 /* ── HUD ── */
 #hud{position:fixed;inset:0;z-index:10;pointer-events:none}
@@ -225,10 +223,8 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
 <!-- Goodnight screen -->
 <div id="goodnightScreen">
   <div class="gn-stars" id="gnStars"></div>
-  <div class="gn-truck">🌙</div>
-  <div class="gn-title">Спокойной ночи!<br/>Good Night! 🚛⭐</div>
-  <div class="gn-sub">Sweet dreams, little racer</div>
-  <div class="gn-wake">Press any button to wake up</div>
+  <div class="gn-msg" id="gnMsg">Good Night, Liam ✨</div>
+  <div class="gn-wake">tap to wake up</div>
 </div>
 
 <!-- HUD -->
@@ -1249,10 +1245,25 @@ function triggerGoodnight() {
   goodnightActive = true;
   clearInterval(progressTimer);
   if (ytPlayer) { try { ytPlayer.pauseVideo(); } catch(e){} }
-  speak('Спокойной ночи! Сладких снов, маленький гонщик!', 'ru-RU');
-  setTimeout(() => {
-    document.getElementById('goodnightScreen').style.display = 'flex';
-  }, 800);
+  // Hide the pre-goodnight sleep stars (goodnight screen has its own)
+  document.getElementById('sleepStars').style.opacity = '0';
+  // Generate goodnight stars
+  const gnStars = document.getElementById('gnStars');
+  gnStars.innerHTML = '';
+  for (let i = 0; i < 80; i++) {
+    const s = document.createElement('div');
+    s.className = 'gn-star';
+    const size = 1 + Math.random() * 2.5;
+    s.style.cssText = `width:${size}px;height:${size}px;left:${Math.random()*100}%;top:${Math.random()*100}%;animation-duration:${3+Math.random()*7}s;animation-delay:${Math.random()*4}s`;
+    gnStars.appendChild(s);
+  }
+  // Reset the fade-in/out message animation
+  const msg = document.getElementById('gnMsg');
+  msg.style.animation = 'none';
+  msg.offsetHeight; // force reflow
+  msg.style.animation = 'gnMsgFade 8s ease-in-out forwards';
+  // Show goodnight — sleep music keeps playing
+  document.getElementById('goodnightScreen').style.display = 'flex';
 }
 
 function wakeFromGoodnight() {
