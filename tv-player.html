@@ -216,6 +216,9 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
 
 <!-- Dim / sleep overlay -->
 <div id="dimOverlay"></div>
+<audio id="sleepMusic" loop preload="none">
+  <source src="https://cdn.pixabay.com/audio/2022/02/23/audio_ea70ad08e0.mp3" type="audio/mpeg">
+</audio>
 
 <!-- Goodnight screen -->
 <div id="goodnightScreen">
@@ -263,7 +266,7 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
 <div id="timerMenu">
   <div class="timer-box">
     <div class="timer-heading">🌙 Sleep Timer</div>
-    <div class="timer-desc">Screen and volume will gently fade over the last 5 minutes<br/>ending in a quiet goodnight screen 🌟</div>
+    <div class="timer-desc">Screen and volume fade gently, replaced by sleepy music<br/>ending in a quiet goodnight screen 🌟</div>
     <div class="timer-grid">
       <div class="t-opt" data-min="10">10 min</div>
       <div class="t-opt chosen" data-min="20">20 min</div>
@@ -1144,22 +1147,49 @@ function startTimer(minutes) {
   document.querySelector('[data-action="cancelTimer"]').style.display = 'block';
   updateTimerPill();
 
+  // Stop any previous sleep music
+  const sleepAudio = document.getElementById('sleepMusic');
+  sleepAudio.pause();
+  sleepAudio.currentTime = 0;
+  sleepMusicStarted = false;
+
   timerInterval = setInterval(() => {
     timerSeconds--;
     updateTimerPill();
 
-    // Fade start: last 5 min (300s) or last 30% of time
-    const fadeStart = Math.max(300, settings.sleepTimer * 60 * 0.5);
-    if (timerSeconds <= fadeStart && timerSeconds > 0) {
-      currentDim = 1 - (timerSeconds / fadeStart);
-      currentDim = Math.min(0.95, currentDim);
+    // Fade window: last 10 min (600s) or 50% of timer, whichever is smaller
+    const totalSec = (settings.sleepTimer || minutes) * 60;
+    const fadeDuration = Math.min(600, totalSec * 0.5);
+    
+    if (timerSeconds <= fadeDuration && timerSeconds > 0) {
+      // Progress: 0 (fade just started) → 1 (timer done)
+      const progress = 1 - (timerSeconds / fadeDuration);
+      
+      // Ease-in curve: slow start, accelerates — less noticeable early on
+      const eased = progress * progress * progress;
+      
+      // Screen dim: 0 → 0.95
+      currentDim = Math.min(0.95, eased * 0.95);
       document.getElementById('dimOverlay').style.opacity = currentDim;
-      // Fade volume too
+      
+      // Video volume: 100 → 0 (eased)
       if (ytPlayer) {
         try {
-          const vol = Math.max(0, Math.round(100 * (timerSeconds / fadeStart)));
+          const vol = Math.max(0, Math.round(100 * (1 - eased)));
           ytPlayer.setVolume(vol);
         } catch(e){}
+      }
+      
+      // Sleep music: start at 30% progress, fade in gradually
+      if (progress >= 0.3) {
+        if (!sleepMusicStarted) {
+          sleepMusicStarted = true;
+          sleepAudio.volume = 0;
+          sleepAudio.play().catch(() => {});
+        }
+        // Sleep music volume: 0 → 0.4 over remaining 70% of fade
+        const musicProgress = (progress - 0.3) / 0.7;
+        sleepAudio.volume = Math.min(0.4, musicProgress * 0.4);
       }
     }
 
@@ -1169,6 +1199,7 @@ function startTimer(minutes) {
     }
   }, 1000);
 }
+let sleepMusicStarted = false;
 
 function updateTimerPill() {
   const m = Math.floor(timerSeconds / 60);
@@ -1182,10 +1213,14 @@ function cancelTimer() {
   clearInterval(timerInterval);
   timerSeconds = 0;
   currentDim = 0;
+  sleepMusicStarted = false;
   document.getElementById('dimOverlay').style.opacity = '0';
   document.getElementById('timerPill').style.display = 'none';
   document.querySelector('[data-action="cancelTimer"]').style.display = 'none';
   if (ytPlayer) { try { ytPlayer.setVolume(100); } catch(e){} }
+  const sleepAudio = document.getElementById('sleepMusic');
+  sleepAudio.pause();
+  sleepAudio.currentTime = 0;
 }
 
 function triggerGoodnight() {
@@ -1200,9 +1235,13 @@ function triggerGoodnight() {
 
 function wakeFromGoodnight() {
   goodnightActive = false;
+  sleepMusicStarted = false;
   document.getElementById('goodnightScreen').style.display = 'none';
   document.getElementById('dimOverlay').style.opacity = '0';
   currentDim = 0;
+  const sleepAudio = document.getElementById('sleepMusic');
+  sleepAudio.pause();
+  sleepAudio.currentTime = 0;
   if (ytPlayer) {
     try { ytPlayer.setVolume(100); ytPlayer.playVideo(); } catch(e){}
   }

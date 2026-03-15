@@ -1,4 +1,4 @@
-const CACHE_NAME = 'liamtv-v2';
+const CACHE_NAME = 'liamtv-v3';
 const PRECACHE = ['/', '/tv-player.html', '/manifest.json'];
 
 self.addEventListener('install', e => {
