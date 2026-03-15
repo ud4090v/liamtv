@@ -1170,8 +1170,9 @@ function startTimer(minutes) {
       // Progress: 0 (fade just started) → 1 (timer done)
       const progress = 1 - (timerSeconds / fadeDuration);
       
-      // Ease-in curve: slow start, accelerates — less noticeable early on
-      const eased = progress * progress * progress;
+      // Adaptive curve: cubic for short timers (≤15min), quadratic for longer
+      // Quadratic spreads the visible effect over more of the 10-min window
+      const eased = fadeDuration <= 450 ? progress * progress * progress : progress * progress;
       
       // Screen dim: 0 → 0.95
       currentDim = Math.min(0.95, eased * 0.95);
