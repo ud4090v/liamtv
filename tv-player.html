@@ -205,6 +205,7 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
 .start-btn{font-family:'Fredoka One',cursive;font-size:clamp(20px,4vw,36px);background:linear-gradient(135deg,#ff6b35,#ffd700);color:#1a0000;border:none;border-radius:18px;padding:16px 56px;cursor:pointer;box-shadow:0 8px 0 #8b2000;transition:transform .1s;animation:btnPulse 2s ease-in-out infinite}
 @keyframes btnPulse{0%,100%{box-shadow:0 8px 0 #8b2000,0 0 0 0 rgba(255,107,53,0)}50%{box-shadow:0 8px 0 #8b2000,0 0 0 12px rgba(255,107,53,0)}}
 @keyframes iosBannerSlide{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@keyframes sleepTwinkle{from{opacity:0.2}to{opacity:1}}
 .start-btn:active{transform:scale(.94)}
 .setup-hint{color:rgba(255,255,255,.2);font-size:clamp(11px,1.8vw,15px);margin-top:14px}
 </style>
@@ -216,6 +217,7 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
 
 <!-- Dim / sleep overlay -->
 <div id="dimOverlay"></div>
+<div id="sleepStars" style="position:fixed;inset:0;z-index:6;pointer-events:none;opacity:0;transition:opacity 3s ease"></div>
 <audio id="sleepMusic" loop preload="none">
   <source src="https://cdn.pixabay.com/audio/2022/02/23/audio_ea70ad08e0.mp3" type="audio/mpeg">
 </audio>
@@ -1180,16 +1182,19 @@ function startTimer(minutes) {
         } catch(e){}
       }
       
-      // Sleep music: start at 30% progress, fade in gradually
+      // Sleep music + stars: start at 30% progress, fade in gradually
       if (progress >= 0.3) {
         if (!sleepMusicStarted) {
           sleepMusicStarted = true;
           sleepAudio.volume = 0;
           sleepAudio.play().catch(() => {});
+          generateSleepStars();
         }
         // Sleep music volume: 0 → 0.4 over remaining 70% of fade
         const musicProgress = (progress - 0.3) / 0.7;
         sleepAudio.volume = Math.min(0.4, musicProgress * 0.4);
+        // Stars: fade in with music
+        document.getElementById('sleepStars').style.opacity = Math.min(1, musicProgress);
       }
     }
 
@@ -1200,6 +1205,21 @@ function startTimer(minutes) {
   }, 1000);
 }
 let sleepMusicStarted = false;
+let sleepStarsGenerated = false;
+
+function generateSleepStars() {
+  if (sleepStarsGenerated) return;
+  sleepStarsGenerated = true;
+  const el = document.getElementById('sleepStars');
+  el.innerHTML = '';
+  for (let i = 0; i < 60; i++) {
+    const s = document.createElement('div');
+    const size = 1 + Math.random() * 2;
+    const brightness = 0.3 + Math.random() * 0.5;
+    s.style.cssText = `position:absolute;width:${size}px;height:${size}px;border-radius:50%;background:rgba(200,210,255,${brightness});left:${Math.random()*100}%;top:${Math.random()*100}%;animation:sleepTwinkle ${4+Math.random()*6}s ease-in-out ${Math.random()*5}s infinite alternate`;
+    el.appendChild(s);
+  }
+}
 
 function updateTimerPill() {
   const m = Math.floor(timerSeconds / 60);
@@ -1221,6 +1241,8 @@ function cancelTimer() {
   const sleepAudio = document.getElementById('sleepMusic');
   sleepAudio.pause();
   sleepAudio.currentTime = 0;
+  document.getElementById('sleepStars').style.opacity = '0';
+  sleepStarsGenerated = false;
 }
 
 function triggerGoodnight() {
@@ -1242,6 +1264,8 @@ function wakeFromGoodnight() {
   const sleepAudio = document.getElementById('sleepMusic');
   sleepAudio.pause();
   sleepAudio.currentTime = 0;
+  document.getElementById('sleepStars').style.opacity = '0';
+  sleepStarsGenerated = false;
   if (ytPlayer) {
     try { ytPlayer.setVolume(100); ytPlayer.playVideo(); } catch(e){}
   }
