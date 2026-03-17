@@ -643,8 +643,10 @@ function moveVideo(i, dir) {
   syncToServer(); renderPlaylist();
 }
 function removeVideo(i) {
+  const scrollY = window.scrollY;
   playlist.splice(i, 1);
   syncToServer(); renderPlaylist();
+  requestAnimationFrame(() => window.scrollTo(0, scrollY));
   showToast('Removed', 'success');
 }
 
