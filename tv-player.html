@@ -550,6 +550,7 @@ async function playPlaylist(name) {
     if (data.videos && data.videos.length > 0) {
       playlist = data.videos;
       if (data.settings) Object.assign(settings, data.settings);
+      _playlistLoadedAt = (data.settings && data.settings._savedAt) ? data.settings._savedAt : Date.now();
       if (settings.playOrder === 'shuffle') playlist = shuffle(playlist);
       currentIdx = 0;
       document.getElementById('homeScreen').style.display = 'none';
@@ -1446,14 +1447,35 @@ function storeSearchPrompt(prompt) {
   }
 }
 
+let _playlistLoadedAt = 0; // timestamp of when we last loaded from server
+
 async function pmSavePlaylist() {
   if (!currentPlaylistName) return;
   try {
+    // Conflict check: fetch current server version before writing
+    const check = await fetch(`/api/playlist?name=${encodeURIComponent(currentPlaylistName)}`);
+    const current = await check.json();
+    const serverTs = current.settings && current.settings._savedAt ? current.settings._savedAt : 0;
+    if (serverTs > _playlistLoadedAt) {
+      // Server has a newer version — another device saved after we loaded.
+      // Reload their version instead of overwriting it.
+      console.warn('[LiamTV] Conflict: server version is newer, reloading instead of overwriting');
+      playlist = current.videos;
+      if (current.settings) Object.assign(settings, current.settings);
+      _playlistLoadedAt = serverTs;
+      applySettings();
+      updateHUD();
+      return;
+    }
+    // Safe to write — stamp with current time
+    const now = Date.now();
+    settings._savedAt = now;
     await fetch(`/api/playlist?name=${encodeURIComponent(currentPlaylistName)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ videos: playlist, settings })
     });
+    _playlistLoadedAt = now;
   } catch(e) { console.warn('Save failed:', e); }
 }
 
@@ -1465,6 +1487,7 @@ async function loadPlaylistFromServer() {
     if (data.videos && data.videos.length > 0) {
       playlist = data.videos;
       if (data.settings) Object.assign(settings, data.settings);
+      _playlistLoadedAt = (data.settings && data.settings._savedAt) ? data.settings._savedAt : Date.now();
       currentIdx = 0;
       applySettings();
       loadCurrentVideo();
