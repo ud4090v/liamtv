@@ -1,6 +1,7 @@
 {
   "rewrites": [
-    { "source": "/", "destination": "/tv-player.html" }
+    { "source": "/", "destination": "/tv-player.html" },
+    { "source": "/manage", "destination": "/manage.html" }
   ],
   "headers": [
     {

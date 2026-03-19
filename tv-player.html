@@ -146,55 +146,6 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
   .po-pill{font-size:14px;padding:10px 20px}
 }
 
-/* ── PLAYLIST MANAGER ── */
-#playlistMgr{position:fixed;inset:0;z-index:17;background:rgba(0,0,0,.94);display:flex;opacity:0;pointer-events:none;transition:opacity .25s;backdrop-filter:blur(16px)}
-#playlistMgr.open{opacity:1;pointer-events:all}
-.pm-sidebar{width:340px;background:rgba(10,10,25,.98);border-right:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;overflow:hidden}
-.pm-main{flex:1;display:flex;flex-direction:column;overflow:hidden}
-@media(max-width:700px),(orientation:portrait){
-  #playlistMgr{flex-direction:column}
-  .pm-sidebar{width:100%;max-height:45vh;border-right:none;border-bottom:1px solid rgba(255,255,255,.08)}
-  .pm-main{flex:1;min-height:0}
-  .pm-result-thumb{width:80px;height:45px}
-}
-.pm-header{padding:20px 24px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between}
-.pm-title{font-family:'Fredoka One',cursive;font-size:22px;background:linear-gradient(135deg,#ff6b35,#ffd700);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.pm-close{font-family:'Fredoka One',cursive;font-size:14px;color:rgba(255,255,255,.3);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:6px 14px;cursor:pointer}
-.pm-close.focused{color:white;border-color:rgba(255,255,255,.3)}
-.pm-list{flex:1;overflow-y:auto;padding:8px}
-.pm-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:2px solid transparent;margin-bottom:4px;transition:all .15s;cursor:pointer}
-.pm-item.focused{border-color:rgba(255,107,53,.4);background:rgba(255,107,53,.08)}
-.pm-item.playing{border-color:rgba(255,215,0,.3);background:rgba(255,215,0,.06)}
-.pm-item-thumb{width:80px;height:45px;border-radius:6px;object-fit:cover;flex-shrink:0;background:#111}
-.pm-item-info{flex:1;min-width:0}
-.pm-item-title{font-size:13px;font-weight:600;color:rgba(255,255,255,.85);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pm-item-ch{font-size:11px;color:rgba(255,255,255,.3);margin-top:2px}
-.pm-item-actions{display:flex;gap:4px;opacity:1}
-.pm-item-btn{font-size:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:4px 8px;color:rgba(255,255,255,.5);cursor:pointer}
-.pm-item-btn.focused{color:white;border-color:rgba(255,255,255,.4);background:rgba(255,255,255,.15)}
-.pm-item-btn.del{color:#ff6b6b;border-color:rgba(255,100,100,.2)}
-.pm-item-btn.del.focused{background:rgba(255,60,60,.2);border-color:rgba(255,100,100,.4)}
-.pm-search{padding:16px;border-bottom:1px solid rgba(255,255,255,.08)}
-.pm-search-row{display:flex;gap:8px}
-.pm-search-input{flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:white;font-size:14px;padding:10px 14px;outline:none;font-family:'Fredoka One',cursive}
-.pm-search-input:focus,.pm-search-input.focused{border-color:#ff6b35}
-.pm-search-btn{font-family:'Fredoka One',cursive;font-size:14px;background:linear-gradient(135deg,#ff6b35,#ffd700);color:#1a0000;border:none;border-radius:10px;padding:10px 18px;cursor:pointer;white-space:nowrap}
-.pm-search-btn.focused{box-shadow:0 0 0 3px rgba(255,107,53,.4)}
-.pm-results{flex:1;overflow-y:auto;padding:8px}
-.pm-result{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:2px solid transparent;margin-bottom:4px;cursor:pointer;transition:all .15s}
-.pm-result.focused{border-color:rgba(0,232,122,.4);background:rgba(0,232,122,.06)}
-.pm-result-thumb{width:120px;height:68px;border-radius:8px;object-fit:cover;flex-shrink:0;background:#111}
-.pm-result-info{flex:1;min-width:0}
-.pm-result-title{font-size:14px;font-weight:600;color:rgba(255,255,255,.85);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.pm-result-ch{font-size:12px;color:rgba(255,255,255,.3);margin-top:4px}
-.pm-result-add{font-family:'Fredoka One',cursive;font-size:12px;background:rgba(0,232,122,.15);color:#00e87a;border:1px solid rgba(0,232,122,.25);border-radius:8px;padding:6px 14px;flex-shrink:0}
-.pm-empty{text-align:center;padding:40px 20px;color:rgba(255,255,255,.25);font-size:14px}
-.pm-tabs{display:flex;border-bottom:1px solid rgba(255,255,255,.08)}
-.pm-tab{flex:1;text-align:center;padding:12px;font-family:'Fredoka One',cursive;font-size:14px;color:rgba(255,255,255,.3);cursor:pointer;transition:all .15s;border-bottom:2px solid transparent}
-.pm-tab.active{color:white;border-bottom-color:#ff6b35}
-.pm-tab.focused{color:rgba(255,255,255,.7);background:rgba(255,255,255,.04)}
-.pm-status{padding:8px 16px;font-size:12px;color:rgba(255,255,255,.25);text-align:center}
-
 /* ── SETUP SCREEN ── */
 #setupScreen{position:fixed;inset:0;z-index:25;background:linear-gradient(160deg,#080816,#10102a,#060610);display:flex;align-items:center;justify-content:center}
 .setup-inner{text-align:center;max-width:min(800px,92vw);padding:20px}
@@ -261,9 +212,7 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
     <div class="menu-item" data-action="prev">⏮ Previous Video</div>
     <div class="menu-item" data-action="timer">🌙 Sleep Timer</div>
     <div class="menu-item" data-action="cancelTimer" style="display:none">❌ Cancel Timer</div>
-    <div class="menu-item" data-action="manage">📋 Manage Playlist</div>
     <div class="menu-item" data-action="close">▶ Continue Watching</div>
-    <div class="menu-item danger" data-action="reload">⚙️ Reload Playlist</div>
   </div>
 </div>
 
@@ -297,79 +246,13 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
 
 <!-- Pause Overlay -->
 <div id="pauseOverlay" style="display:none">
-  <div class="po-top">
-    <button class="po-pill" onclick="poAction('manage')">📋 Manage Playlist</button>
-  </div>
+  <div class="po-top"></div>
   <button class="po-nav po-prev" onclick="poAction('prev')" title="Previous">❮</button>
   <button class="po-play" onclick="poAction('play')" id="poPlayBtn" title="Play">▶</button>
   <button class="po-nav po-next" onclick="poAction('next')" title="Next">❯</button>
   <div class="po-bottom" id="poBottom"></div>
   <div class="po-bottom" style="bottom:80px" id="poBottomHome">
     <button class="po-pill po-exit" onclick="poAction('home')">🏠 Home</button>
-  </div>
-</div>
-
-<!-- Playlist Manager -->
-<div id="playlistMgr">
-  <div class="pm-sidebar">
-    <div class="pm-header">
-      <div class="pm-title">📋 Playlist</div>
-      <div class="pm-close" id="pmClose" onclick="closePlaylistMgr()">✕ Close</div>
-    </div>
-    <div class="pm-list" id="pmList"></div>
-
-    <div class="pm-status" id="pmStatus"></div>
-  </div>
-  <div class="pm-main">
-    <div class="pm-tabs">
-      <div class="pm-tab active" id="pmTabSearch" onclick="pmSwitchTab('search')">🔍 Search</div>
-      <div class="pm-tab" id="pmTabAi" onclick="pmSwitchTab('ai')">🤖 AI</div>
-      <div class="pm-tab" id="pmTabSettings" onclick="pmSwitchTab('settings')">⚙️ Settings</div>
-    </div>
-    <div class="pm-search" id="pmSearchPanel">
-      <div class="pm-search-row">
-        <input class="pm-search-input" id="pmSearchInput" placeholder="Search YouTube..." onkeydown="if(event.key==='Enter')pmSearch()"/>
-        <button class="pm-search-btn" id="pmSearchBtn" onclick="pmSearch()">Search</button>
-      </div>
-    </div>
-    <div class="pm-search" id="pmAiPanel" style="display:none">
-      <div class="pm-search-row">
-        <input class="pm-search-input" id="pmAiInput" placeholder="Describe what to find... e.g. 'monster truck stunts for toddlers'"/>
-        <button class="pm-search-btn" id="pmAiBtn" onclick="pmAiSearch()">🤖 Find</button>
-      </div>
-    </div>
-    <div id="pmSettingsPanel" style="display:none;padding:16px;overflow-y:auto;flex:1;position:relative;z-index:2;-webkit-overflow-scrolling:touch">
-      <div style="font-family:'Fredoka One',cursive;font-size:15px;color:white;margin-bottom:8px">🔀 Play Order</div>
-      <div style="display:flex;gap:8px;margin-bottom:20px">
-        <button id="pmShuffleOn" onclick="pmSetPlayOrder('shuffle')" style="flex:1;padding:12px;font-family:'Fredoka One',cursive;font-size:14px;border-radius:10px;border:2px solid #ff6b35;cursor:pointer;transition:all .15s">🔀 Shuffle</button>
-        <button id="pmShuffleOff" onclick="pmSetPlayOrder('sequence')" style="flex:1;padding:12px;font-family:'Fredoka One',cursive;font-size:14px;border-radius:10px;border:2px solid rgba(255,255,255,.15);cursor:pointer;transition:all .15s">➡️ Sequential</button>
-      </div>
-      <div style="font-family:'Fredoka One',cursive;font-size:15px;color:white;margin-bottom:8px">🚫 Content Filters</div>
-      <div style="background:rgba(255,107,53,0.07);border:1px solid rgba(255,107,53,0.2);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:rgba(255,255,255,.5);line-height:1.5">
-        <strong style="color:#ff6b35">🛡 Always blocked:</strong> reaction videos, fail/pain compilations, pranks, clickbait, influencer drama, Elsagate, overstimulation rapid-cut, unboxing hauls, adults imitating cartoons, animals in distress.
-      </div>
-      <div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:8px">Add extra rules for <em>this playlist</em> (optional):</div>
-      <textarea id="pmContentFilters" placeholder="e.g. no cartoons, only real vehicles, no cat videos"
-        style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:white;font-family:'DM Sans',sans-serif;font-size:16px;padding:12px;outline:none;resize:vertical;min-height:80px;line-height:1.5;box-sizing:border-box;-webkit-user-select:text;user-select:text"></textarea>
-      <div style="height:20px"></div>
-      <div style="font-family:'Fredoka One',cursive;font-size:15px;color:white;margin-bottom:8px">🎯 Parent Direction</div>
-      <div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:8px">Guides ALL new video discovery. Leave blank for pure taste-based discovery.</div>
-      <textarea id="pmParentDirection" placeholder="e.g. Focus on learning numbers and counting through fun play videos"
-        style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:white;font-family:'DM Sans',sans-serif;font-size:16px;padding:12px;outline:none;resize:vertical;min-height:80px;line-height:1.5;box-sizing:border-box;-webkit-user-select:text;user-select:text"></textarea>
-      <div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.18);border-radius:10px;padding:12px;margin-top:12px">
-        <div style="font-size:11px;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">💡 Example directions</div>
-        <div style="font-size:12px;color:rgba(255,255,255,.5);line-height:1.6">
-          • "Focus on math and counting skills"<br>
-          • "Encourage curiosity about nature and animals"<br>
-          • "Bilingual content — mix English and Spanish"
-        </div>
-      </div>
-      <button id="pmSaveBtn" onclick="pmSaveSettings()" style="width:100%;margin-top:16px;padding:14px;font-family:'Fredoka One',cursive;font-size:16px;background:#ff6b35;border:none;border-radius:12px;color:white;cursor:pointer;transition:all .15s">💾 Save Settings</button>
-      <div id="pmSaveConfirm" style="display:none;text-align:center;color:#4ade80;font-size:14px;font-weight:600;margin-top:10px">✓ Settings saved!</div>
-    </div>
-    <div class="pm-results" id="pmResults">
-      <div class="pm-empty">Search for videos to add to your playlist</div>
-    </div>
   </div>
 </div>
 
@@ -403,6 +286,8 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;fon
   </div>
 </div>
 
+<!-- Pusher (real-time refresh from /manage) -->
+<script src="https://js.pusher.com/8.4/pusher.min.js"></script>
 <!-- YouTube IFrame API -->
 <script src="https://www.youtube.com/iframe_api"></script>
 <script>
@@ -557,55 +442,15 @@ async function playPlaylist(name) {
       applySettings();
       initPlayer();
     } else {
-      // Empty playlist — open manager to add videos
-      document.getElementById('homeScreen').style.display = 'none';
-      openPlaylistMgr();
+      // Empty playlist — go home (use /manage to add videos)
+      goHome();
     }
   } catch(e) { console.warn('Failed to load playlist:', e); }
 }
 
 function createNewPlaylist() {
-  // Start with a temp name — AI will rename after videos are added
-  currentPlaylistName = '_new-' + Date.now();
-  playlist = [];
-  settings.channelName = 'New Playlist';
-  document.getElementById('homeScreen').style.display = 'none';
-  openPlaylistMgr();
-}
-
-async function autoNamePlaylist() {
-  if (!playlist.length || !currentPlaylistName) return;
-  try {
-    const titles = playlist.map(v => v.title);
-    const resp = await fetch('/api/videos/name', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ titles }),
-    });
-    const result = await resp.json();
-    
-    // Delete the temp playlist if it was a temp name
-    const oldName = currentPlaylistName;
-    if (oldName.startsWith('_new-')) {
-      fetch(`/api/playlist?name=${encodeURIComponent(oldName)}`, { method: 'DELETE' }).catch(() => {});
-    }
-    
-    // Save with the new name
-    currentPlaylistName = result.name;
-    settings.channelName = result.title;
-    applySettings();
-    await pmSavePlaylist();
-    document.getElementById('pmStatus').textContent = `${playlist.length} videos · "${result.title}"`;
-  } catch(e) {
-    console.warn('Auto-name failed:', e);
-    // Fallback: use generic name
-    if (currentPlaylistName.startsWith('_new-')) {
-      const fallback = 'playlist-' + Date.now().toString(36);
-      currentPlaylistName = fallback;
-      settings.channelName = 'My Playlist 🎬';
-      await pmSavePlaylist();
-    }
-  }
+  // Redirect to /manage for playlist creation
+  window.open('/manage', '_blank');
 }
 
 function goHome() {
@@ -620,7 +465,6 @@ function goHome() {
   playlist = [];
   currentIdx = 0;
   hidePauseOverlay();
-  closePlaylistMgr();
   document.getElementById('liamTVPause').style.display = 'none';
   document.getElementById('ytPlayer').style.display = 'none';
   document.getElementById('hud').style.display = 'none';
@@ -1336,116 +1180,16 @@ function updateMenuFocus() {
 function activateMenu() {
   const items = menuItems();
   const action = items[menuFocusIdx]?.dataset?.action;
-  // Manage playlist: close menu overlay but keep video paused
-  if (action === 'manage') {
-    menuOpen = false;
-    document.getElementById('menu').classList.remove('open');
-    openPlaylistMgr();
-    return;
-  }
   closeMenu();
   if (action === 'next') nextVideo();
   else if (action === 'prev') prevVideo();
   else if (action === 'timer') openTimerMenu();
   else if (action === 'cancelTimer') cancelTimer();
   else if (action === 'close') {}
-  else if (action === 'reload') { loadPlaylistFromServer(); }
 }
 
 // ──────────────────────────── PLAYLIST MANAGER ────────────────────────────
-let pmOpen = false;
-let pmFocus = 'list'; // 'list' | 'search' | 'results' | 'close' | 'tabs'
-let pmListIdx = 0;
-let pmResultIdx = 0;
-let pmSearchResults = [];
-let pmActiveTab = 'search';
-
-function openPlaylistMgr() {
-  pmOpen = true;
-  pmFocus = 'list';
-  pmListIdx = currentIdx;
-  if (ytPlayer) { try { ytPlayer.pauseVideo(); } catch(e){} }
-  document.getElementById('playlistMgr').classList.add('open');
-  renderPmList();
-  pmRenderTimer();
-  document.getElementById('pmStatus').textContent = `${playlist.length} videos`;
-}
-
-function closePlaylistMgr() {
-  pmOpen = false;
-  document.getElementById('playlistMgr').classList.remove('open');
-  // Auto-name if still a temp playlist with videos
-  if (currentPlaylistName?.startsWith('_new-') && playlist.length > 0) {
-    autoNamePlaylist();
-  }
-  if (ytPlayer && playlist.length > 0) { try { ytPlayer.playVideo(); } catch(e){} }
-  // If no videos were added, go back home
-  if (playlist.length === 0 && currentPlaylistName?.startsWith('_new-')) {
-    goHome();
-  }
-}
-
-function renderPmList() {
-  const el = document.getElementById('pmList');
-  if (!playlist.length) {
-    el.innerHTML = '<div class="pm-empty">No videos yet.<br/>Search to add some!</div>';
-    return;
-  }
-  el.innerHTML = playlist.map((v, i) => `
-    <div class="pm-item ${i === pmListIdx && pmFocus === 'list' ? 'focused' : ''} ${i === currentIdx ? 'playing' : ''}" onclick="pmSelectItem(${i})">
-      <img class="pm-item-thumb" src="${v.thumb || 'https://img.youtube.com/vi/'+v.id+'/mqdefault.jpg'}" loading="lazy"/>
-      <div class="pm-item-info">
-        <div class="pm-item-title">${pmEsc(v.title)}</div>
-        <div class="pm-item-ch">${pmEsc(v.channel || '')}${i === currentIdx ? ' · ▶ Now Playing' : ''}</div>
-      </div>
-      <div class="pm-item-actions">
-        ${i > 0 ? '<span class="pm-item-btn" onclick="event.stopPropagation();pmMoveVideo('+i+',-1)">↑</span>' : ''}
-        ${i < playlist.length-1 ? '<span class="pm-item-btn" onclick="event.stopPropagation();pmMoveVideo('+i+',1)">↓</span>' : ''}
-        <span class="pm-item-btn del" onclick="event.stopPropagation();pmRemoveVideo(${i})">✕</span>
-      </div>
-    </div>`).join('');
-  // Scroll focused into view
-  const focused = el.querySelector('.pm-item.focused');
-  if (focused) focused.scrollIntoView({ block: 'nearest' });
-}
-
-function pmSelectItem(i) {
-  currentIdx = i;
-  loadCurrentVideo();
-  renderPmList();
-}
-
-function pmMoveVideo(i, dir) {
-  const j = i + dir;
-  if (j < 0 || j >= playlist.length) return;
-  // Track current playing index
-  if (currentIdx === i) currentIdx = j;
-  else if (currentIdx === j) currentIdx = i;
-  [playlist[i], playlist[j]] = [playlist[j], playlist[i]];
-  pmListIdx = j;
-  renderPmList();
-  pmSavePlaylist();
-}
-
-function pmRemoveVideo(i) {
-  playlist.splice(i, 1);
-  if (currentIdx >= playlist.length) currentIdx = Math.max(0, playlist.length - 1);
-  if (pmListIdx >= playlist.length) pmListIdx = Math.max(0, playlist.length - 1);
-  renderPmList();
-  document.getElementById('pmStatus').textContent = `${playlist.length} videos`;
-  pmSavePlaylist();
-}
-
-function storeSearchPrompt(prompt) {
-  if (!settings.prompts) settings.prompts = [];
-  // Avoid duplicates
-  if (!settings.prompts.includes(prompt)) {
-    settings.prompts.push(prompt);
-    // Keep last 50 prompts
-    if (settings.prompts.length > 50) settings.prompts = settings.prompts.slice(-50);
-    debouncedSave();
-  }
-}
+// Playlist manager UI removed — managed via /manage route
 
 let _playlistLoadedAt = 0; // timestamp of when we last loaded from server
 
@@ -1496,120 +1240,6 @@ async function loadPlaylistFromServer() {
   } catch(e) { console.warn('Reload failed:', e); }
 }
 
-function pmSwitchTab(tab) {
-  pmActiveTab = tab;
-  document.getElementById('pmTabSearch').classList.toggle('active', tab === 'search');
-  document.getElementById('pmTabAi').classList.toggle('active', tab === 'ai');
-  document.getElementById('pmTabSettings').classList.toggle('active', tab === 'settings');
-  document.getElementById('pmSearchPanel').style.display = tab === 'search' ? 'block' : 'none';
-  document.getElementById('pmAiPanel').style.display = tab === 'ai' ? 'block' : 'none';
-  document.getElementById('pmSettingsPanel').style.display = tab === 'settings' ? 'block' : 'none';
-  document.getElementById('pmResults').style.display = tab === 'settings' ? 'none' : '';
-  if (tab === 'settings') pmLoadSettings();
-}
-function pmLoadSettings() {
-  document.getElementById('pmContentFilters').value = settings.contentFilters || '';
-  document.getElementById('pmParentDirection').value = settings.parentDirection || '';
-  pmUpdatePlayOrderUI();
-}
-function pmSetPlayOrder(order) {
-  settings.playOrder = order;
-  pmUpdatePlayOrderUI();
-}
-function pmUpdatePlayOrderUI() {
-  const isShuffle = (settings.playOrder || 'shuffle') === 'shuffle';
-  document.getElementById('pmShuffleOn').style.background = isShuffle ? '#ff6b35' : 'transparent';
-  document.getElementById('pmShuffleOn').style.color = isShuffle ? 'white' : 'rgba(255,255,255,.5)';
-  document.getElementById('pmShuffleOn').style.borderColor = '#ff6b35';
-  document.getElementById('pmShuffleOff').style.background = !isShuffle ? '#ff6b35' : 'transparent';
-  document.getElementById('pmShuffleOff').style.color = !isShuffle ? 'white' : 'rgba(255,255,255,.5)';
-  document.getElementById('pmShuffleOff').style.borderColor = !isShuffle ? '#ff6b35' : 'rgba(255,255,255,.15)';
-}
-async function pmSaveSettings() {
-  settings.contentFilters = document.getElementById('pmContentFilters').value.trim();
-  settings.parentDirection = document.getElementById('pmParentDirection').value.trim();
-  await pmSavePlaylist();
-  const confirm = document.getElementById('pmSaveConfirm');
-  confirm.style.display = 'block';
-  setTimeout(() => { confirm.style.display = 'none'; }, 2000);
-}
-
-async function pmSearch() {
-  const q = document.getElementById('pmSearchInput').value.trim();
-  if (!q) return;
-  storeSearchPrompt(q);
-  document.getElementById('pmResults').innerHTML = '<div class="pm-empty">🛡 Searching & screening...</div>';
-  try {
-    // Use search API — handles YouTube + filtering server-side
-    const result = await apiSearchVideos(q, settings.contentFilters || '', 12);
-    pmSearchResults = result.videos || [];
-    pmResultIdx = 0;
-    renderPmResults();
-  } catch(e) {
-    document.getElementById('pmResults').innerHTML = '<div class="pm-empty">Search failed</div>';
-  }
-}
-
-async function pmAiSearch() {
-  const prompt = document.getElementById('pmAiInput').value.trim();
-  if (!prompt) return;
-  storeSearchPrompt(prompt);
-  document.getElementById('pmResults').innerHTML = '<div class="pm-empty">🤖 AI searching & screening...</div>';
-  try {
-    const result = await apiSearchVideos(prompt, settings.contentFilters || '', 16);
-    pmSearchResults = result.videos || [];
-    pmResultIdx = 0;
-    if (result.filtered > 0) console.log(`In-player AI search: ${result.filtered} result(s) filtered out`);
-    renderPmResults();
-  } catch(e) {
-    document.getElementById('pmResults').innerHTML = '<div class="pm-empty">AI search failed</div>';
-  }
-}
-
-function renderPmResults() {
-  const el = document.getElementById('pmResults');
-  if (!pmSearchResults.length) {
-    el.innerHTML = '<div class="pm-empty">No results found</div>';
-    return;
-  }
-  const existing = new Set(playlist.map(v => v.id));
-  el.innerHTML = pmSearchResults.map((v, i) => `
-    <div class="pm-result ${i === pmResultIdx && pmFocus === 'results' ? 'focused' : ''}" onclick="pmAddVideo(${i})">
-      <img class="pm-result-thumb" src="${v.thumb}" loading="lazy"/>
-      <div class="pm-result-info">
-        <div class="pm-result-title">${pmEsc(v.title)}</div>
-        <div class="pm-result-ch">${pmEsc(v.channel)}</div>
-      </div>
-      <div class="pm-result-add">${existing.has(v.id) ? '✓ Added' : '+ Add'}</div>
-    </div>`).join('');
-  const focused = el.querySelector('.pm-result.focused');
-  if (focused) focused.scrollIntoView({ block: 'nearest' });
-}
-
-function pmAddVideo(i) {
-  const v = pmSearchResults[i];
-  if (playlist.find(p => p.id === v.id)) return;
-  // Add with v2 fields
-  v.weight = v.weight || 1;
-  v.summary = v.summary || '';
-  playlist.push(v);
-  renderPmList();
-  renderPmResults();
-  document.getElementById('pmStatus').textContent = `${playlist.length} videos · Saved`;
-  pmSavePlaylist();
-  // Start playing if this is the first video
-  if (playlist.length === 1) {
-    currentIdx = 0;
-    document.getElementById('homeScreen').style.display = 'none';
-    initPlayer();
-  }
-  // Auto-name new playlists after 3+ videos added
-  if (currentPlaylistName?.startsWith('_new-') && playlist.length >= 3) {
-    document.getElementById('pmStatus').textContent = '🤖 Naming your playlist...';
-    autoNamePlaylist();
-  }
-}
-
 // ──────────────────────────── PAUSE OVERLAY ────────────────────────────
 let poVisible = false;
 let poHideTimer = null;
@@ -1657,32 +1287,10 @@ function poAction(action) {
   if (action === 'play') { hidePauseOverlay(); resumePlay(); }
   else if (action === 'next') { hidePauseOverlay(); nextVideo(); }
   else if (action === 'prev') { hidePauseOverlay(); prevVideo(); }
-  else if (action === 'manage') { hidePauseOverlay(); openPlaylistMgr(); }
   else if (action === 'timer') { hidePauseOverlay(); openTimerMenu(); }
-  else if (action === 'reload') { hidePauseOverlay(); loadPlaylistFromServer(); }
   else if (action === 'cancelTimer') { cancelTimer(); updatePoTimerBtn(); }
   else if (action === 'home') { hidePauseOverlay(); goHome(); }
 }
-
-function pmSetTimer(min) {
-  settings.sleepTimer = min;
-  selectedTimerMin = min;
-  document.querySelectorAll('.pm-timer-pill').forEach(p => {
-    p.classList.toggle('active', parseInt(p.dataset.min) === min);
-  });
-  // Apply immediately
-  cancelTimer();
-  if (min > 0) startTimer(min);
-  pmSavePlaylist();
-}
-
-function pmRenderTimer() {
-  document.querySelectorAll('.pm-timer-pill').forEach(p => {
-    p.classList.toggle('active', parseInt(p.dataset.min) === settings.sleepTimer);
-  });
-}
-
-function pmEsc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // ──────────────────────────── TIMER MENU ────────────────────────────
 function openTimerMenu() {
@@ -1722,41 +1330,6 @@ function confirmTimer() {
 document.addEventListener('keydown', e => {
   // Wake from goodnight
   if (goodnightActive) { wakeFromGoodnight(); e.preventDefault(); return; }
-
-  // Playlist manager
-  if (pmOpen) {
-    const inInput = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
-    if (e.key === 'Escape' || (e.key === 'Backspace' && !inInput)) { closePlaylistMgr(); e.preventDefault(); return; }
-    if (inInput && pmActiveTab === 'settings') return; // Let settings textareas handle all input
-    if (pmFocus === 'list') {
-      if (e.key === 'ArrowUp') pmListIdx = Math.max(0, pmListIdx - 1);
-      else if (e.key === 'ArrowDown') pmListIdx = Math.min(playlist.length - 1, pmListIdx + 1);
-      else if (e.key === 'ArrowRight') { pmFocus = 'search'; document.getElementById(pmActiveTab === 'search' ? 'pmSearchInput' : 'pmAiInput').focus(); }
-      else if (e.key === 'Enter' || e.key === ' ') pmSelectItem(pmListIdx);
-      else if (e.key === 'Delete' || e.key === 'd') pmRemoveVideo(pmListIdx);
-      renderPmList();
-    } else if (pmFocus === 'search') {
-      if (inInput) {
-        // Let the input handle all normal typing — only intercept navigation keys
-        if (e.key === 'Escape') { document.activeElement.blur(); pmFocus = 'list'; renderPmList(); }
-        else if (e.key === 'ArrowDown' && e.altKey === false) { pmFocus = 'results'; pmResultIdx = 0; document.activeElement.blur(); renderPmResults(); }
-        else if (e.key === 'Tab') { e.preventDefault(); const tabs = ['search','ai','settings']; const next = tabs[(tabs.indexOf(pmActiveTab)+1)%3]; pmSwitchTab(next); if(next==='search')document.getElementById('pmSearchInput').focus(); else if(next==='ai')document.getElementById('pmAiInput').focus(); }
-        else return; // Let input handle typing, backspace, etc.
-      } else {
-        if (e.key === 'ArrowLeft') { pmFocus = 'list'; renderPmList(); }
-        else if (e.key === 'ArrowDown') { pmFocus = 'results'; pmResultIdx = 0; renderPmResults(); }
-        else if (e.key === 'Enter') { document.getElementById(pmActiveTab === 'search' ? 'pmSearchInput' : 'pmAiInput').focus(); }
-        else return;
-      }
-    } else if (pmFocus === 'results') {
-      if (e.key === 'ArrowUp') { if (pmResultIdx > 0) pmResultIdx--; else { pmFocus = 'search'; document.getElementById(pmActiveTab === 'search' ? 'pmSearchInput' : 'pmAiInput').focus(); } }
-      else if (e.key === 'ArrowDown') pmResultIdx = Math.min(pmSearchResults.length - 1, pmResultIdx + 1);
-      else if (e.key === 'ArrowLeft') { pmFocus = 'list'; renderPmList(); }
-      else if (e.key === 'Enter' || e.key === ' ') pmAddVideo(pmResultIdx);
-      renderPmResults();
-    }
-    e.preventDefault(); return;
-  }
 
   // Timer menu
   if (timerMenuOpen) {
@@ -1803,8 +1376,8 @@ document.addEventListener('keydown', e => {
 document.addEventListener('click', (e) => {
   if (goodnightActive) { wakeFromGoodnight(); return; }
   // Ignore clicks on overlay buttons themselves
-  if (e.target.closest('#pauseOverlay') || e.target.closest('#menu') || e.target.closest('#timerMenu') || e.target.closest('#playlistMgr')) return;
-  if (!menuOpen && !timerMenuOpen && !pmOpen) togglePauseOverlay();
+  if (e.target.closest('#pauseOverlay') || e.target.closest('#menu') || e.target.closest('#timerMenu')) return;
+  if (!menuOpen && !timerMenuOpen) togglePauseOverlay();
 });
 
 // Click handlers for timer menu
@@ -1825,8 +1398,7 @@ setInterval(() => {
 }, 10000);
 
 // Playlist manager input focus tracking
-document.getElementById('pmSearchInput')?.addEventListener('focus', () => { if (pmOpen) pmFocus = 'search'; });
-document.getElementById('pmAiInput')?.addEventListener('focus', () => { if (pmOpen) pmFocus = 'search'; });
+// pm focus listeners removed — playlist manager now at /manage
 
 // Register service worker for PWA / native app support
 if ('serviceWorker' in navigator) {
@@ -1856,6 +1428,108 @@ function dismissIosBanner() {
   document.getElementById('iosBanner').style.display = 'none';
   localStorage.setItem('iosBannerDismissed', '1');
 }
+
+// ──────────────────────────── PUSHER (REMOTE REFRESH) ────────────────────────────
+(async function initPusher() {
+  if (typeof Pusher === 'undefined') return;
+  try {
+    const r = await fetch('/api/pusher/config');
+    const { key, cluster } = await r.json();
+    if (!key) { console.log('[Pusher] Not configured — skipping'); return; }
+
+    const pusher = new Pusher(key, { cluster: cluster || 'us2' });
+    const channel = pusher.subscribe('liamtv-main');
+
+    channel.bind('refresh', function(data) {
+      console.log('[Pusher] Refresh event:', data);
+      if (data.type === 'gentle') {
+        handleGentleRefresh();
+      } else if (data.type === 'forced') {
+        handleForcedRefresh();
+      }
+    });
+
+    console.log('[Pusher] Subscribed to liamtv-main');
+  } catch(e) {
+    console.warn('[Pusher] Init failed:', e);
+  }
+})();
+
+async function handleGentleRefresh() {
+  // Reload playlist + settings from server WITHOUT interrupting current playback
+  try {
+    if (!currentPlaylistName) return;
+    const r = await fetch('/api/playlist?name=' + encodeURIComponent(currentPlaylistName));
+    const data = await r.json();
+    if (data.videos && data.videos.length > 0) {
+      // Preserve current position — only update playlist contents + settings
+      const wasIdx = currentIdx;
+      const wasId = playlist[currentIdx]?.id;
+      playlist = data.videos;
+      if (data.settings) Object.assign(settings, data.settings);
+      _playlistLoadedAt = (data.settings && data.settings._savedAt) ? data.settings._savedAt : Date.now();
+      // Try to maintain position by matching video id
+      if (wasId) {
+        const newIdx = playlist.findIndex(v => v.id === wasId);
+        if (newIdx >= 0) currentIdx = newIdx;
+      }
+      applySettings();
+      updateHUD();
+      console.log('[Pusher] Gentle refresh applied — playlist reloaded');
+    }
+  } catch(e) {
+    console.warn('[Pusher] Gentle refresh failed:', e);
+  }
+}
+
+async function handleForcedRefresh() {
+  await handleGentleRefresh();
+  // Force skip to next video (stops current, advances)
+  nextVideo();
+  console.log('[Pusher] Forced refresh — skipped to next video');
+}
+
+// ──────────────────────────── PUSHER (REMOTE REFRESH) ────────────────────────────
+async function initPusher() {
+  try {
+    const r = await fetch('/api/pusher/config');
+    const { key, cluster } = await r.json();
+    if (!key) return; // Pusher not configured
+    const pusher = new Pusher(key, { cluster });
+    pusher.subscribe('liamtv-main').bind('refresh', function(data) {
+      console.log('[Pusher] Refresh event:', data);
+      if (data.type === 'gentle') {
+        handleGentleRefresh();
+      } else if (data.type === 'forced') {
+        handleForcedRefresh();
+      }
+    });
+    console.log('[Pusher] Subscribed to liamtv-main');
+  } catch(e) {
+    console.warn('[Pusher] Not available:', e);
+  }
+}
+
+async function handleGentleRefresh() {
+  try {
+    if (currentPlaylistName) {
+      const r = await fetch('/api/playlist?name=' + encodeURIComponent(currentPlaylistName));
+      const data = await r.json();
+      playlist = data.videos || [];
+      if (data.settings) Object.assign(settings, data.settings);
+      applySettings();
+      updateHUD();
+    }
+  } catch(e) {
+    console.warn('[Pusher] Gentle refresh failed:', e);
+  }
+}
+
+function handleForcedRefresh() {
+  handleGentleRefresh().then(() => { nextVideo(); });
+}
+
+initPusher();
 </script>
 </body>
 </html>

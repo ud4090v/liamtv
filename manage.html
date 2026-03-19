@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#0b0b14"/>
+<title>🚛 Liam TV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg: #0b0b14;
+  --surface: #13131f;
+  --surface2: #1c1c2e;
+  --border: rgba(255,255,255,0.08);
+  --border-bright: rgba(255,255,255,0.18);
+  --orange: #ff6b35;
+  --gold: #ffd700;
+  --green: #00e87a;
+  --blue: #38bdf8;
+  --text: #f0f0f8;
+  --muted: rgba(255,255,255,0.4);
+  --radius: 16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;padding-bottom:60px}
+
+header{background:rgba(11,11,20,0.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.logo{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;background:linear-gradient(135deg,var(--orange),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.header-left{display:flex;align-items:center;gap:10px}
+.header-actions{display:flex;gap:10px;align-items:center}
+.back-btn{background:none;border:none;color:var(--muted);font-size:26px;cursor:pointer;padding:2px 6px;line-height:1;transition:color 0.15s}
+.back-btn:hover{color:var(--text)}
+
+.btn{font-family:'DM Sans',sans-serif;font-weight:700;font-size:14px;border:none;border-radius:10px;padding:10px 18px;cursor:pointer;transition:all 0.15s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:active{transform:scale(0.95)}
+.btn-primary{background:linear-gradient(135deg,var(--orange),#e03dac);color:white;box-shadow:0 4px 20px rgba(255,107,53,0.35)}
+.btn-primary:hover{box-shadow:0 6px 28px rgba(255,107,53,0.5);transform:translateY(-1px)}
+.btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border-bright)}
+.btn-secondary:hover{background:#252538;border-color:rgba(255,255,255,0.28)}
+.btn-green{background:linear-gradient(135deg,#00e87a,#00c2ff);color:#001a0f}
+.btn-green:hover{box-shadow:0 6px 24px rgba(0,232,122,0.4);transform:translateY(-1px)}
+.btn-danger{background:rgba(255,60,60,0.15);color:#ff6b6b;border:1px solid rgba(255,60,60,0.2)}
+.btn-danger:hover{background:rgba(255,60,60,0.25)}
+.btn-sm{padding:6px 12px;font-size:13px;border-radius:8px}
+.btn-icon{padding:8px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--muted)}
+.btn-icon:hover{color:var(--text);border-color:var(--border-bright)}
+
+.container{max-width:900px;margin:0 auto;padding:24px 20px}
+.section{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:24px;margin-bottom:20px}
+.section-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:10px}
+.section-title span{font-size:22px}
+
+/* HOME */
+.playlists-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.playlist-card{background:var(--surface2);border:2px solid var(--border);border-radius:16px;overflow:hidden;cursor:pointer;transition:all 0.2s;position:relative}
+.playlist-card:hover{border-color:var(--orange);transform:translateY(-2px);box-shadow:0 8px 24px rgba(255,107,53,0.2)}
+.playlist-card-thumb{width:100%;aspect-ratio:16/9;object-fit:cover;background:#111;display:block}
+.playlist-card-placeholder{width:100%;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;font-size:36px;background:var(--surface)}
+.playlist-card-info{padding:12px 14px}
+.playlist-card-name{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.playlist-card-count{font-size:12px;color:var(--muted);margin-top:3px}
+.playlist-card-del{position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.75);border:none;color:#ff8080;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px;display:none;align-items:center;justify-content:center;line-height:1}
+.playlist-card:hover .playlist-card-del{display:flex}
+.playlist-card-del:hover{background:rgba(255,60,60,0.45)}
+
+.new-card{background:var(--surface2);border:2px dashed var(--border-bright);border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s;padding:32px 16px;gap:10px;color:var(--muted);font-weight:700;font-size:14px;text-align:center;min-height:140px}
+.new-card:hover{border-color:var(--orange);color:var(--orange);background:rgba(255,107,53,0.04)}
+.new-card .plus{font-size:32px;line-height:1}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.72);backdrop-filter:blur(8px);z-index:500;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border-bright);border-radius:20px;padding:28px;width:100%;max-width:400px}
+.modal h2{font-family:'Syne',sans-serif;font-size:20px;margin-bottom:20px}
+.modal-field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.modal-field label{font-size:13px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:0.5px}
+.modal-field input{background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;padding:12px 14px;outline:none;width:100%;transition:border-color 0.2s}
+.modal-field input:focus{border-color:var(--orange)}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+
+/* EDITOR */
+.settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:600px){.settings-grid{grid-template-columns:1fr}}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:13px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:0.5px}
+.field input,.field select{background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;padding:12px 14px;outline:none;transition:border-color 0.2s;width:100%}
+.field input:focus,.field select:focus{border-color:var(--orange)}
+select option{background:#1c1c2e}
+.filters-textarea:focus{border-color:var(--orange)!important}
+
+.url-row{display:flex;gap:10px;margin-bottom:16px}
+.url-row input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:15px;padding:12px 16px;outline:none;transition:border-color 0.2s}
+.url-row input:focus{border-color:var(--orange)}
+
+.ai-row textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:15px;padding:12px 16px;outline:none;resize:none;height:80px;transition:border-color 0.2s;font-family:'DM Sans',sans-serif;margin-bottom:14px}
+.ai-row textarea:focus{border-color:var(--blue)}
+
+.search-results{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:16px}
+.result-card{background:var(--surface2);border:2px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:all 0.2s}
+.result-card:hover{border-color:var(--orange);transform:translateY(-2px)}
+.result-card.selected{border-color:var(--green);background:rgba(0,232,122,0.06)}
+.result-thumb{width:100%;aspect-ratio:16/9;object-fit:cover;background:#111;display:block}
+.result-info{padding:10px 12px}
+.result-title{font-size:13px;font-weight:600;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.result-channel{font-size:11px;color:var(--muted);margin-top:4px}
+.result-check{position:absolute;top:8px;right:8px;background:var(--green);color:#001a0f;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.result-card-wrap{position:relative}
+
+.playlist-empty{text-align:center;padding:40px;color:var(--muted)}
+.playlist-empty .empty-icon{font-size:48px;margin-bottom:12px}
+.video-item{display:flex;align-items:center;gap:12px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:10px;margin-bottom:8px;transition:border-color 0.2s}
+.video-item:hover{border-color:var(--border-bright)}
+.video-thumb-sm{width:100px;height:56px;border-radius:8px;object-fit:cover;flex-shrink:0;background:#111}
+.video-meta{flex:1;min-width:0}
+.video-title{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.video-channel{font-size:12px;color:var(--muted);margin-top:2px}
+.video-actions{display:flex;gap:6px;flex-shrink:0}
+.drag-handle{color:var(--muted);cursor:grab;padding:4px;font-size:18px;user-select:none}
+
+.timer-pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.timer-pill{background:var(--surface2);border:1px solid var(--border);border-radius:50px;padding:6px 16px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;color:var(--muted)}
+.timer-pill.active{background:rgba(255,107,53,0.15);border-color:var(--orange);color:var(--orange)}
+
+.tabs{display:flex;gap:4px;background:var(--surface2);border-radius:12px;padding:4px;margin-bottom:20px}
+.tab{flex:1;text-align:center;padding:10px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;transition:all 0.2s;color:var(--muted)}
+.tab.active{background:var(--surface);color:var(--text);box-shadow:0 2px 8px rgba(0,0,0,0.3)}
+
+.count-badge{background:rgba(255,107,53,0.2);color:var(--orange);border-radius:50px;padding:2px 8px;font-size:13px;font-weight:700}
+.divider{height:1px;background:var(--border);margin:20px 0}
+.hint{font-size:12px;color:var(--muted);line-height:1.5}
+
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,0.2);border-top-color:var(--orange);border-radius:50%;animation:spin 0.7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-row{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:14px;padding:12px 0}
+.page-loading{text-align:center;padding:60px 20px;color:var(--muted)}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:#1e1e30;border:1px solid var(--border-bright);border-radius:12px;padding:12px 24px;font-size:14px;font-weight:600;z-index:999;transition:transform 0.3s;white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,0.5)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.success{border-color:rgba(0,232,122,0.4);color:var(--green)}
+.toast.error{border-color:rgba(255,100,100,0.4);color:#ff8080}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <button class="back-btn" id="backBtn" onclick="goHome()" style="display:none">&#8592;</button>
+    <div class="logo" id="headerTitle">🚛 Liam TV</div>
+  </div>
+  <div class="header-actions" id="headerActions">
+    <button class="btn btn-secondary btn-sm" id="gentleRefreshBtn" onclick="triggerRefresh('gentle')" title="Reload playlist on TV without interrupting playback">🔄 Gentle</button>
+    <button class="btn btn-primary btn-sm" id="forcedRefreshBtn" onclick="triggerRefresh('forced')" title="Force TV to reload and skip to next video">⚡ Force</button>
+  </div>
+</header>
+
+<!-- ═══ HOME VIEW ═══ -->
+<div id="view-home">
+  <div class="container">
+    <div class="section">
+      <div class="section-title"><span>📋</span> Playlists</div>
+      <div id="playlistsGrid" class="playlists-grid">
+        <div class="page-loading"><div class="spinner" style="width:32px;height:32px;border-width:3px;margin:0 auto 16px"></div>Loading...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ EDITOR VIEW ═══ -->
+<div id="view-editor" style="display:none">
+  <div class="container">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('manual')" id="tab-manual">📋 Videos</div>
+      <div class="tab" onclick="switchTab('ai')" id="tab-ai">🤖 AI Search</div>
+      <div class="tab" onclick="switchTab('settings')" id="tab-settings">⚙️ Settings</div>
+    </div>
+
+    <!-- VIDEOS TAB -->
+    <div id="panel-manual">
+      <div class="section">
+        <div class="section-title"><span>📋</span> Playlist <span class="count-badge" id="videoCount">0</span></div>
+        <div class="url-row">
+          <input type="text" id="urlInput" placeholder="Paste YouTube URL or video ID..." onkeydown="if(event.key==='Enter')addUrl()"/>
+          <button class="btn btn-primary" onclick="addUrl()">+ Add</button>
+        </div>
+        <div class="hint" style="margin-bottom:16px">Supports: youtube.com/watch?v=..., youtu.be/..., or just the video ID</div>
+        <div id="playlistEl">
+          <div class="playlist-empty"><div class="empty-icon">🚛</div><div>No videos yet!</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI TAB -->
+    <div id="panel-ai" style="display:none">
+      <div class="section">
+        <div class="section-title"><span>🤖</span> AI Playlist Generator</div>
+        <div class="divider"></div>
+        <div class="ai-row">
+          <textarea id="aiPrompt" placeholder="Describe what you want, e.g: 'Monster truck stunts for toddlers', 'Lego car builds'..."></textarea>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-green" onclick="aiSearch()" id="aiSearchBtn">🔍 Find Videos with AI</button>
+          <div style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px">
+            Max:
+            <select id="maxResults" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:8px;font-size:13px">
+              <option value="6">6</option>
+              <option value="10" selected>10</option>
+              <option value="20">20</option>
+            </select>
+          </div>
+        </div>
+        <div id="aiStatus"></div>
+        <div id="searchResults" class="search-results"></div>
+        <div id="addSelectedRow" style="display:none;margin-top:16px">
+          <button class="btn btn-primary" onclick="addSelectedToPlaylist()">+ Add Selected (<span id="selectedCount">0</span>)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS TAB -->
+    <div id="panel-settings" style="display:none">
+      <div class="section">
+        <div class="section-title"><span>⚙️</span> Playlist Settings</div>
+        <div class="settings-grid">
+          <div class="field">
+            <label>Display Name</label>
+            <input type="text" id="channelName" placeholder="e.g. Monster Trucks" oninput="saveSettings()"/>
+          </div>
+          <div class="field">
+            <label>Playback Order</label>
+            <select id="playOrder" onchange="saveSettings()">
+              <option value="sequence">In Order</option>
+              <option value="shuffle">Shuffle</option>
+              <option value="repeat1">Repeat One</option>
+            </select>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="section-title" style="font-size:15px;margin-bottom:8px"><span>🚫</span> Content Filters</div>
+        <div style="background:rgba(255,107,53,0.07);border:1px solid rgba(255,107,53,0.2);border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:13px;color:var(--muted);line-height:1.6">
+          <strong style="color:var(--orange)">🛡 Global rules always active:</strong> reaction videos, fail/pain compilations, prank videos, clickbait formats, influencer drama, Elsagate content, overstimulation rapid-cut videos, unboxing hauls, adults imitating cartoon characters, animals in distress content.
+        </div>
+        <div class="hint" style="margin-bottom:10px">Add extra rules specific to <em>this playlist</em> (optional). Plain English.</div>
+        <textarea id="contentFilters"
+          placeholder="e.g. cat videos, dog videos, any cartoons, only real vehicles"
+          oninput="saveSettings()"
+          class="filters-textarea"
+          style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;padding:12px 14px;outline:none;resize:vertical;min-height:90px;transition:border-color 0.2s;line-height:1.5"></textarea>
+        <div class="hint" style="margin-top:8px">💡 Example: "no animated content, only real cars and trucks", "no animals at all, just machines"</div>
+        <div class="divider"></div>
+        <div class="section-title" style="font-size:15px;margin-bottom:12px"><span>🌙</span> Default Sleep Timer</div>
+        <div class="hint" style="margin-bottom:12px">Screen fades over last 5 minutes</div>
+        <div class="timer-pills" id="timerPills">
+          <div class="timer-pill" data-min="0" onclick="setTimer(0)">Off</div>
+          <div class="timer-pill" data-min="15" onclick="setTimer(15)">15 min</div>
+          <div class="timer-pill active" data-min="30" onclick="setTimer(30)">30 min</div>
+          <div class="timer-pill" data-min="45" onclick="setTimer(45)">45 min</div>
+          <div class="timer-pill" data-min="60" onclick="setTimer(60)">1 hour</div>
+          <div class="timer-pill" data-min="90" onclick="setTimer(90)">90 min</div>
+        </div>
+        <div class="divider"></div>
+        <div class="section-title" style="font-size:15px;margin-bottom:8px"><span>🎯</span> Curation <span style="font-size:12px;color:var(--muted);font-family:'DM Sans',sans-serif;font-weight:400">(Liam TV mode)</span></div>
+        <div class="hint" style="margin-bottom:12px">Controls how Liam TV balances replaying known videos vs discovering new ones. Goal: broad, balanced exposure — not a narrow rabbit hole.</div>
+        <div class="field" style="margin-bottom:8px">
+          <label>🧭 Parent Direction</label>
+          <textarea id="parentDirection" oninput="saveSettings()"
+            placeholder="Describe your goal in plain language..."
+            style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;padding:12px 14px;outline:none;resize:vertical;min-height:72px;transition:border-color 0.2s;line-height:1.5"></textarea>
+          <span class="hint">Guides ALL new video discovery. Your child's preferences are respected — searches find content they'll enjoy AND that serves your goal. Leave blank for pure taste-based discovery.</span>
+        </div>
+        <div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.18);border-radius:12px;padding:14px 16px;margin-bottom:16px">
+          <div style="font-size:12px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">💡 Example directions</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div class="direction-example" onclick="setDirection(this)" style="cursor:pointer;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;line-height:1.4;transition:border-color 0.15s">
+              <strong style="color:var(--text)">Math &amp; counting</strong><br/>
+              <span style="color:var(--muted)">"Focus on improving math and counting skills — find videos where Liam enjoys the content but also learns numbers, counting, basic arithmetic through play"</span>
+            </div>
+            <div class="direction-example" onclick="setDirection(this)" style="cursor:pointer;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;line-height:1.4;transition:border-color 0.15s">
+              <strong style="color:var(--text)">Language &amp; vocabulary</strong><br/>
+              <span style="color:var(--muted)">"Build vocabulary and early reading readiness — songs, stories, and shows that introduce new words and spelling in an engaging way"</span>
+            </div>
+            <div class="direction-example" onclick="setDirection(this)" style="cursor:pointer;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;line-height:1.4;transition:border-color 0.15s">
+              <strong style="color:var(--text)">Nature &amp; curiosity</strong><br/>
+              <span style="color:var(--muted)">"Encourage curiosity about the natural world — animals, plants, weather, space, how things work. Mix of wonder and fun, not dry documentary style"</span>
+            </div>
+            <div class="direction-example" onclick="setDirection(this)" style="cursor:pointer;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;line-height:1.4;transition:border-color 0.15s">
+              <strong style="color:var(--text)">World cultures</strong><br/>
+              <span style="color:var(--muted)">"Introduce different world cultures, languages, and traditions in a fun age-appropriate way — music, food, celebrations from around the world"</span>
+            </div>
+            <div class="direction-example" onclick="setDirection(this)" style="cursor:pointer;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;line-height:1.4;transition:border-color 0.15s">
+              <strong style="color:var(--text)">Balanced (educational + fun)</strong><br/>
+              <span style="color:var(--muted)">"Balance educational value with pure entertainment — roughly half and half. Don't force learning into everything, but don't ignore it either"</span>
+            </div>
+            <div class="direction-example" onclick="setDirection(this)" style="cursor:pointer;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;line-height:1.4;transition:border-color 0.15s">
+              <strong style="color:var(--text)">Creativity &amp; arts</strong><br/>
+              <span style="color:var(--muted)">"Foster creativity and artistic expression — drawing, music, crafts, imaginative play. Content that inspires making things, not just watching"</span>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:10px">↑ Tap any example to use it as a starting point</div>
+        </div>
+        <div class="settings-grid" style="margin-bottom:14px">
+          <div class="field">
+            <label>Min Watch Count</label>
+            <input type="number" id="minWatchCount" min="1" max="20" placeholder="3" oninput="saveSettings()"/>
+            <span class="hint">Rotate all history before going full-discovery</span>
+          </div>
+          <div class="field">
+            <label>Discovery Ratio</label>
+            <input type="number" id="discoveryRatio" min="0.1" max="0.9" step="0.1" placeholder="0.4" oninput="saveSettings()"/>
+            <span class="hint">New content per batch (0.1–0.9, default 0.4)</span>
+          </div>
+        </div>
+        <div class="settings-grid">
+          <div class="field">
+            <label>Skip Threshold</label>
+            <input type="number" id="skipThreshold" min="1" max="10" placeholder="3" oninput="saveSettings()"/>
+            <span class="hint">Remove video after this many quick skips</span>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <button class="btn btn-danger" onclick="confirmDeletePlaylist()">🗑 Delete This Playlist</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- NEW PLAYLIST MODAL -->
+<div class="modal-overlay" id="newPlaylistModal">
+  <div class="modal">
+    <h2>➕ New Playlist</h2>
+    <div class="modal-field">
+      <label>Playlist ID</label>
+      <input type="text" id="newPlaylistName" placeholder="e.g. monster-trucks" maxlength="40"
+        onkeydown="if(event.key==='Enter')createPlaylist()"
+        oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_-]/g,'-').replace(/-{2,}/g,'-')"/>
+    </div>
+    <div class="hint">Lowercase letters, numbers, hyphens only.</div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeNewPlaylistModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="createPlaylist()">Create</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── API CLIENT — all AI/YouTube/filtering logic lives server-side ───
+
+async function apiSearchVideos(prompt, playlistFilters, maxResults) {
+  const resp = await fetch('/api/videos/search', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, playlistFilters, maxResults }),
+  });
+  if (!resp.ok) throw new Error(`Search API error ${resp.status}`);
+  return resp.json(); // { videos[], filtered }
+}
+
+async function apiScreenVideos(videos, playlistFilters) {
+  if (!videos.length) return { passed: [], blocked: [] };
+  const resp = await fetch('/api/videos/screen', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ videos, playlistFilters }),
+  });
+  if (!resp.ok) return { passed: videos, blocked: [] };
+  return resp.json(); // { passed[], blocked[], isBlocked?, reason? }
+}
+
+async function apiVideoMeta(id) {
+  const resp = await fetch(`/api/videos/meta?id=${encodeURIComponent(id)}`);
+  if (!resp.ok) return { id, title: `Video ${id}`, channel: 'YouTube', thumb: `https://img.youtube.com/vi/${id}/mqdefault.jpg` };
+  return resp.json();
+}
+
+// STATE
+let currentPlaylistName = null;
+let playlist = [];
+let settings = { channelName: '', playOrder: 'sequence', sleepTimer: 30, contentFilters: '',
+                 minWatchCount: 3, discoveryRatio: 0.4, skipThreshold: 3, parentDirection: '' };
+let selectedSearchResults = new Set();
+let searchResultCache = [];
+let syncing = false;
+
+// INIT
+window.addEventListener('load', loadHome);
+
+// ─── HOME ───
+async function loadHome() {
+  showView('home');
+  document.getElementById('backBtn').style.display = 'none';
+  document.getElementById('headerTitle').textContent = '🚛 Liam TV';
+  document.getElementById('headerActions').innerHTML = '';
+  currentPlaylistName = null;
+
+  const grid = document.getElementById('playlistsGrid');
+  grid.innerHTML = '<div class="page-loading"><div class="spinner" style="width:32px;height:32px;border-width:3px;margin:0 auto 16px"></div>Loading...</div>';
+
+  let playlists = [];
+  try {
+    const r = await fetch('/api/playlists');
+    const data = await r.json();
+    playlists = (data.playlists || []).filter(p => !p.name.startsWith('_'));
+  } catch(e) {
+    showToast('Failed to load playlists', 'error');
+  }
+
+  let html = playlists.map(p => `
+    <div class="playlist-card" onclick="openPlaylist('${escAttr(p.name)}')">
+      ${p.thumb
+        ? `<img class="playlist-card-thumb" src="${escAttr(p.thumb)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/><div class="playlist-card-placeholder" style="display:none">🎬</div>`
+        : `<div class="playlist-card-placeholder">🎬</div>`}
+      <div class="playlist-card-info">
+        <div class="playlist-card-name">${escHtml(p.title || p.name)}</div>
+        <div class="playlist-card-count">${p.videoCount} video${p.videoCount !== 1 ? 's' : ''}</div>
+      </div>
+      <button class="playlist-card-del" onclick="event.stopPropagation();deletePlaylistByName('${escAttr(p.name)}')" title="Delete">✕</button>
+    </div>`).join('');
+
+  html += `<div class="new-card" onclick="showNewPlaylistModal()"><div class="plus">＋</div><div>New Playlist</div></div>`;
+  grid.innerHTML = html;
+}
+
+function goHome() { loadHome(); }
+
+// ─── OPEN PLAYLIST ───
+async function openPlaylist(name) {
+  currentPlaylistName = name;
+  playlist = [];
+  settings = { channelName: name, playOrder: 'sequence', sleepTimer: 30 };
+  selectedSearchResults.clear();
+  searchResultCache = [];
+
+  showView('editor');
+  switchTab('manual');
+  document.getElementById('backBtn').style.display = 'block';
+  document.getElementById('headerActions').innerHTML = `<button class="btn btn-secondary btn-sm" onclick="switchTab('settings')">⚙️ Settings</button>`;
+  document.getElementById('playlistEl').innerHTML = '<div class="loading-row"><div class="spinner"></div> Loading...</div>';
+  document.getElementById('headerTitle').textContent = '...';
+
+  try {
+    const r = await fetch('/api/playlist?name=' + encodeURIComponent(name));
+    const data = await r.json();
+    playlist = data.videos || [];
+    if (data.settings) Object.assign(settings, data.settings);
+  } catch(e) {
+    showToast('Failed to load playlist', 'error');
+  }
+
+  document.getElementById('headerTitle').textContent = settings.channelName || name;
+  applySettings();
+  renderPlaylist();
+  setTimer(settings.sleepTimer, true);
+  showToast('Loaded ' + playlist.length + ' video' + (playlist.length !== 1 ? 's' : ''), 'success');
+}
+
+// ─── NEW PLAYLIST ───
+function showNewPlaylistModal() {
+  document.getElementById('newPlaylistName').value = '';
+  document.getElementById('newPlaylistModal').classList.add('open');
+  setTimeout(() => document.getElementById('newPlaylistName').focus(), 80);
+}
+function closeNewPlaylistModal() {
+  document.getElementById('newPlaylistModal').classList.remove('open');
+}
+async function createPlaylist() {
+  const val = document.getElementById('newPlaylistName').value.trim();
+  if (!val) { showToast('Enter a name', 'error'); return; }
+  const name = val.replace(/[^a-zA-Z0-9_-]/g,'-').replace(/-{2,}/g,'-').replace(/^-|-$/g,'');
+  if (!name) { showToast('Invalid name', 'error'); return; }
+  closeNewPlaylistModal();
+  try {
+    await fetch('/api/playlist?name=' + encodeURIComponent(name), {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ videos: [], settings: { channelName: name, playOrder: 'sequence', sleepTimer: 30 } })
+    });
+    showToast('Created "' + name + '"', 'success');
+    await openPlaylist(name);
+  } catch(e) {
+    showToast('Failed to create playlist', 'error');
+  }
+}
+
+// ─── DELETE PLAYLIST ───
+async function deletePlaylistByName(name) {
+  if (!confirm('Delete playlist "' + name + '"? This cannot be undone.')) return;
+  try {
+    await fetch('/api/playlist?name=' + encodeURIComponent(name), { method: 'DELETE' });
+    showToast('Deleted "' + name + '"', 'success');
+    await loadHome();
+  } catch(e) {
+    showToast('Failed to delete', 'error');
+  }
+}
+async function confirmDeletePlaylist() {
+  if (!currentPlaylistName) return;
+  if (!confirm('Delete playlist "' + currentPlaylistName + '"? This cannot be undone.')) return;
+  try {
+    await fetch('/api/playlist?name=' + encodeURIComponent(currentPlaylistName), { method: 'DELETE' });
+    showToast('Deleted', 'success');
+    await loadHome();
+  } catch(e) {
+    showToast('Failed to delete', 'error');
+  }
+}
+
+// ─── VIEW SWITCHER ───
+function showView(v) {
+  document.getElementById('view-home').style.display = v === 'home' ? 'block' : 'none';
+  document.getElementById('view-editor').style.display = v === 'editor' ? 'block' : 'none';
+}
+
+// ─── EDITOR TABS ───
+function switchTab(tab) {
+  ['manual','ai','settings'].forEach(t => {
+    document.getElementById('panel-' + t).style.display = 'none';
+    document.getElementById('tab-' + t).classList.remove('active');
+  });
+  document.getElementById('panel-' + tab).style.display = 'block';
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
+// ─── SETTINGS ───
+function applySettings() {
+  document.getElementById('channelName').value = settings.channelName || '';
+  document.getElementById('playOrder').value = settings.playOrder || 'sequence';
+  document.getElementById('contentFilters').value = settings.contentFilters || '';
+  document.getElementById('minWatchCount').value = settings.minWatchCount !== undefined ? settings.minWatchCount : 3;
+  document.getElementById('discoveryRatio').value = settings.discoveryRatio !== undefined ? settings.discoveryRatio : 0.4;
+  document.getElementById('skipThreshold').value = settings.skipThreshold !== undefined ? settings.skipThreshold : 3;
+  document.getElementById('parentDirection').value = settings.parentDirection || '';
+}
+function saveSettings() {
+  settings.channelName = document.getElementById('channelName').value;
+  settings.playOrder = document.getElementById('playOrder').value;
+  settings.contentFilters = document.getElementById('contentFilters').value.trim();
+  settings.minWatchCount = parseFloat(document.getElementById('minWatchCount').value) || 3;
+  settings.discoveryRatio = Math.min(0.9, Math.max(0.1, parseFloat(document.getElementById('discoveryRatio').value) || 0.4));
+  settings.skipThreshold = parseInt(document.getElementById('skipThreshold').value) || 3;
+  settings.parentDirection = document.getElementById('parentDirection').value.trim();
+  document.getElementById('headerTitle').textContent = settings.channelName || currentPlaylistName;
+  syncToServer();
+}
+
+// ─── TIMER ───
+function setTimer(min, silent) {
+  settings.sleepTimer = min;
+  document.querySelectorAll('.timer-pill').forEach(p => {
+    p.classList.toggle('active', parseInt(p.dataset.min) === min);
+  });
+  if (!silent) syncToServer();
+  if (!silent) showToast(min === 0 ? 'Sleep timer off' : 'Sleep timer: ' + min + ' min', 'success');
+}
+
+// ─── SYNC ───
+async function syncToServer() {
+  if (!currentPlaylistName || syncing) return;
+  syncing = true;
+  try {
+    await fetch('/api/playlist?name=' + encodeURIComponent(currentPlaylistName), {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ videos: playlist, settings })
+    });
+  } catch(e) { console.warn('Sync failed:', e); }
+  syncing = false;
+}
+
+// ─── URL PARSING ───
+function extractVideoId(input) {
+  input = input.trim();
+  if (/^[a-zA-Z0-9_-]{11}$/.test(input)) return input;
+  const patterns = [
+    /[?&]v=([a-zA-Z0-9_-]{11})/,
+    /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+    /embed\/([a-zA-Z0-9_-]{11})/,
+    /shorts\/([a-zA-Z0-9_-]{11})/,
+  ];
+  for (const p of patterns) { const m = input.match(p); if (m) return m[1]; }
+  return null;
+}
+
+// ─── ADD URL ───
+async function addUrl() {
+  const input = document.getElementById('urlInput').value.trim();
+  if (!input) return;
+  const id = extractVideoId(input);
+  if (!id) { showToast('Could not find a YouTube video ID', 'error'); return; }
+  if (playlist.find(v => v.id === id)) { showToast('Already in playlist', 'error'); return; }
+  document.getElementById('urlInput').value = '';
+
+  const addBtn = document.querySelector('.url-row .btn-primary');
+  addBtn.innerHTML = '<div class="spinner"></div>';
+  addBtn.disabled = true;
+
+  // Fetch meta + screen in parallel (screen uses title from meta first)
+  const video = await apiVideoMeta(id);
+
+  // Screen via API (single video path returns isBlocked + reason)
+  const screenResult = await apiScreenVideos([video], settings.contentFilters || '');
+  if (screenResult.isBlocked) {
+    addBtn.innerHTML = '+ Add';
+    addBtn.disabled = false;
+    showToast('🚫 Blocked: ' + (screenResult.reason || 'content filter'), 'error');
+    return;
+  }
+
+  addBtn.innerHTML = '+ Add';
+  addBtn.disabled = false;
+  playlist.push(video);
+  syncToServer();
+  renderPlaylist();
+  showToast('Added: ' + video.title.slice(0,40), 'success');
+}
+
+// ─── RENDER PLAYLIST ───
+function renderPlaylist() {
+  const el = document.getElementById('playlistEl');
+  document.getElementById('videoCount').textContent = playlist.length;
+  if (!playlist.length) {
+    el.innerHTML = '<div class="playlist-empty"><div class="empty-icon">🚛</div><div>No videos yet! Add YouTube URLs above or use AI Search.</div></div>';
+    return;
+  }
+  el.innerHTML = playlist.map((v, i) => `
+    <div class="video-item">
+      <div class="drag-handle" title="Drag to reorder">⠿</div>
+      <img class="video-thumb-sm" src="${v.thumb}" onerror="this.src='https://img.youtube.com/vi/${v.id}/mqdefault.jpg'" loading="lazy"/>
+      <div class="video-meta">
+        <div class="video-title">${escHtml(v.title)}</div>
+        <div class="video-channel">${escHtml(v.channel||'')} · <a href="https://youtube.com/watch?v=${v.id}" target="_blank" style="color:var(--blue);text-decoration:none">▶ Watch</a></div>
+      </div>
+      <div class="video-actions">
+        ${i>0?`<button class="btn btn-icon btn-sm" onclick="moveVideo(${i},-1)" title="Move up">↑</button>`:''}
+        ${i<playlist.length-1?`<button class="btn btn-icon btn-sm" onclick="moveVideo(${i},1)" title="Move down">↓</button>`:''}
+        <button class="btn btn-danger btn-sm" onclick="removeVideo(${i})">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+function moveVideo(i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= playlist.length) return;
+  [playlist[i], playlist[j]] = [playlist[j], playlist[i]];
+  syncToServer(); renderPlaylist();
+}
+function removeVideo(i) {
+  const scrollY = window.scrollY;
+  playlist.splice(i, 1);
+  syncToServer(); renderPlaylist();
+  requestAnimationFrame(() => window.scrollTo(0, scrollY));
+  showToast('Removed', 'success');
+}
+
+// ─── BATCH FILTER (for AI search results) ───
+// Sends all titles to Claude in one call for efficiency
+// ─── AI SEARCH ───
+async function aiSearch() {
+  const prompt = document.getElementById('aiPrompt').value.trim();
+  if (!prompt) { showToast('Enter a description first', 'error'); return; }
+  const btn = document.getElementById('aiSearchBtn');
+  btn.innerHTML = '<div class="spinner"></div> Searching...';
+  btn.disabled = true;
+  document.getElementById('searchResults').innerHTML = '';
+  document.getElementById('aiStatus').innerHTML = '<div class="loading-row"><div class="spinner"></div> AI searching & screening...</div>';
+  selectedSearchResults.clear();
+
+  try {
+    const maxResults = parseInt(document.getElementById('maxResults').value) || 10;
+    const result = await apiSearchVideos(prompt, settings.contentFilters || '', maxResults);
+    const filterNote = result.filtered > 0
+      ? ' <span style="color:var(--muted)">(' + result.filtered + ' filtered out)</span>'
+      : '';
+    document.getElementById('aiStatus').innerHTML =
+      '<div style="color:var(--green);font-size:13px;padding:8px 0">✓ ' + (result.videos || []).length + ' videos passed screening.' + filterNote + ' Tap to select.</div>';
+    searchResultCache = result.videos || [];
+    renderSearchResults(searchResultCache);
+  } catch(e) {
+    document.getElementById('aiStatus').innerHTML = '<div style="color:#ff8080;font-size:13px;padding:8px 0">Error: ' + e.message + '</div>';
+  }
+
+  btn.innerHTML = '🔍 Find Videos with AI';
+  btn.disabled = false;
+}
+
+function renderSearchResults(results) {
+  const el = document.getElementById('searchResults');
+  if (!results.length) { el.innerHTML = '<div style="color:var(--muted);font-size:14px;padding:16px">No results. Try a different prompt.</div>'; return; }
+  el.innerHTML = results.map((v, i) => `
+    <div class="result-card-wrap">
+      <div class="result-card ${selectedSearchResults.has(i)?'selected':''}" onclick="toggleSearchResult(${i})">
+        <img class="result-thumb" src="${v.thumb}" loading="lazy" onerror="this.src='https://img.youtube.com/vi/${v.id}/mqdefault.jpg'"/>
+        <div class="result-info">
+          <div class="result-title">${escHtml(v.title)}</div>
+          <div class="result-channel">${escHtml(v.channel)}</div>
+        </div>
+        ${selectedSearchResults.has(i)?'<div class="result-check">✓</div>':''}
+      </div>
+    </div>`).join('');
+  const count = selectedSearchResults.size;
+  document.getElementById('selectedCount').textContent = count;
+  document.getElementById('addSelectedRow').style.display = count > 0 ? 'block' : 'none';
+}
+
+function toggleSearchResult(i) {
+  if (selectedSearchResults.has(i)) selectedSearchResults.delete(i);
+  else selectedSearchResults.add(i);
+  renderSearchResults(searchResultCache);
+}
+
+function addSelectedToPlaylist() {
+  let added = 0;
+  for (const i of selectedSearchResults) {
+    const v = searchResultCache[i];
+    if (!playlist.find(p => p.id === v.id)) { playlist.push(v); added++; }
+  }
+  syncToServer(); renderPlaylist();
+  selectedSearchResults.clear();
+  renderSearchResults(searchResultCache);
+  showToast('Added ' + added + ' videos!', 'success');
+  switchTab('manual');
+}
+
+// ─── UTILS ───
+// Tap an example direction card to pre-fill the textarea
+function setDirection(el) {
+  const text = el.querySelector('span').textContent.replace(/^"|"$/g, '').trim();
+  document.getElementById('parentDirection').value = text;
+  saveSettings();
+  // Brief highlight feedback
+  el.style.borderColor = 'var(--blue)';
+  setTimeout(() => el.style.borderColor = '', 600);
+  showToast('Direction set — tap Settings to adjust', 'success');
+}
+
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escAttr(s) { return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+let toastTimer;
+function showToast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ─── PUSHER REFRESH ───
+async function triggerRefresh(type) {
+  if (type === 'forced' && !confirm('Force refresh will interrupt playback on the TV. Continue?')) return;
+
+  const btnId = type === 'gentle' ? 'gentleRefreshBtn' : 'forcedRefreshBtn';
+  const btn = document.getElementById(btnId);
+  const original = btn.innerHTML;
+  btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;display:inline-block;vertical-align:middle"></div>';
+  btn.disabled = true;
+
+  try {
+    const r = await fetch('/api/pusher/trigger', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type }),
+    });
+    const data = await r.json();
+    if (r.ok) {
+      showToast(type === 'gentle' ? '✅ TV playlist refreshed' : '⚡ TV forced to next video', 'success');
+    } else {
+      showToast('⚠️ ' + (data.error || 'Refresh failed'), 'error');
+    }
+  } catch (e) {
+    showToast('⚠️ Network error', 'error');
+  }
+
+  btn.innerHTML = original;
+  btn.disabled = false;
+}
+</script>
+</body>
+</html>
