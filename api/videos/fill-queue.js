@@ -111,64 +111,95 @@ export default async function handler(req, res) {
     }
   }
 
-  // ── Step 3: Discovery slots — broad taste-informed search ──
+  // ── Step 3: Discovery slots — preferred channels first, then broad discovery ──
   if (discoverySlots > 0) {
-    try {
-      // Build a BROAD taste sample — intentionally not just recent/top favorites
-      // Sample from across the full history to preserve breadth
-      const sample = buildBroadSample(history, 12);
-      const tasteStr = sample.length
-        ? sample.map(v => `"${v.title}" by ${v.channel}`).join(', ')
-        : 'various kid-friendly educational and entertaining content';
+    const combinedFilters = playlistFilters + buildBlacklistScreenBlock(blacklistedChannels);
 
-      const filterHint = 'NEVER suggest reaction videos, fail compilations, prank videos, clickbait channels, unboxing hauls, Elsagate content, or overstimulation rapid-cut videos.';
+    // Step 3a: Hard-fetch from preferred channels (~60% of discovery slots)
+    const preferredSlots = preferredChannels.length > 0 ? Math.ceil(discoverySlots * 0.6) : 0;
+    let preferredFilled = 0;
 
-      // Build parent direction instruction (core steering force when set)
-      const directionBlock = parentDirection
-        ? `PARENT'S INTENT: "${parentDirection}"\nThis is the primary goal. Every query should find content that serves this intent while still matching the child's interests. Find videos where BOTH are true — the child will enjoy it AND it supports the parent's direction. Do not ignore either signal.`
-        : `No specific parent direction set — use broad, balanced discovery across educational and entertaining themes.`;
-
-      // Build channel taste signals
-      const channelTaste = buildChannelTasteBlock(preferredChannels, blacklistedChannels);
-
-      // Ask Claude for diverse queries — parent direction steers, taste informs
-      const queriesRaw = await callClaude({
-        model: ANTHROPIC_MODEL_SMART,
-        maxTokens: 500,
-        system: `You find new YouTube content for a 3-year-old's curated stream. Generate ${Math.min(discoverySlots + 3, 8)} diverse search queries. IMPORTANT: prioritize breadth and variety — do not over-index on the most recent taste signals. Mix different angles and formats. ${filterHint}`,
-        userMessage: `${directionBlock}\n\n${channelTaste ? channelTaste + '\n\n' : ''}Child's watch history sample (use as inspiration for what they enjoy, steer it toward the parent's intent above): ${tasteStr}\n\nGenerate diverse search queries. Return JSON array only.`,
-      });
-
-      const queries = JSON.parse(queriesRaw.replace(/```json|```/g, '').trim());
-
-      // Search YouTube with each query, collect candidates
-      const rawCandidates = [];
-      for (const q of queries) {
-        if (rawCandidates.length >= discoverySlots * 3) break;
-        try {
-          const videos = await ytSearch({ query: q, maxResults: 6 });
-          for (const v of videos) {
-            if (!avoid.has(v.id)) rawCandidates.push(v);
+    if (preferredSlots > 0) {
+      try {
+        const prefCandidates = [];
+        // Search YouTube directly for each preferred channel
+        for (const ch of preferredChannels) {
+          if (prefCandidates.length >= preferredSlots * 3) break;
+          try {
+            const videos = await ytSearch({ query: `"${ch}" for kids`, maxResults: 6 });
+            for (const v of videos) {
+              if (!avoid.has(v.id)) prefCandidates.push(v);
+            }
+          } catch (e) {
+            console.warn(`Preferred channel search failed for "${ch}":`, e.message);
           }
-        } catch (e) {
-          console.warn(`Discovery search failed for "${q}":`, e.message);
         }
+        const prefDeduped = dedupe(prefCandidates);
+        const prefSafe = await filterVideos(prefDeduped, combinedFilters);
+        filtered += prefDeduped.length - prefSafe.length;
+
+        for (const v of prefSafe.slice(0, preferredSlots)) {
+          results.push({ ...v, _source: 'preferred' });
+          avoid.add(v.id);
+          preferredFilled++;
+        }
+      } catch (e) {
+        console.warn('Preferred channel fetch failed (non-fatal):', e.message);
       }
+    }
 
-      const deduped = dedupe(rawCandidates);
+    // Step 3b: Broader AI discovery for remaining slots
+    const remainingSlots = discoverySlots - preferredFilled;
+    if (remainingSlots > 0) {
+      try {
+        // Build a BROAD taste sample — intentionally not just recent/top favorites
+        const sample = buildBroadSample(history, 12);
+        const tasteStr = sample.length
+          ? sample.map(v => `"${v.title}" by ${v.channel}`).join(', ')
+          : 'various kid-friendly educational and entertaining content';
 
-      // Filter through content rules + blacklisted channels
-      const combinedFilters = playlistFilters + buildBlacklistScreenBlock(blacklistedChannels);
-      const safe = await filterVideos(deduped, combinedFilters);
-      filtered = deduped.length - safe.length;
+        const filterHint = 'NEVER suggest reaction videos, fail compilations, prank videos, clickbait channels, unboxing hauls, Elsagate content, or overstimulation rapid-cut videos.';
 
-      for (const v of safe.slice(0, discoverySlots)) {
-        results.push({ ...v, _source: 'discovery' });
-        avoid.add(v.id);
+        const directionBlock = parentDirection
+          ? `PARENT'S INTENT: "${parentDirection}"\nThis is the primary goal. Every query should find content that serves this intent while still matching the child's interests. Find videos where BOTH are true — the child will enjoy it AND it supports the parent's direction. Do not ignore either signal.`
+          : `No specific parent direction set — use broad, balanced discovery across educational and entertaining themes.`;
+
+        // Build channel taste signals (AI pattern inference)
+        const channelTaste = buildChannelTasteBlock(preferredChannels, blacklistedChannels);
+
+        const queriesRaw = await callClaude({
+          model: ANTHROPIC_MODEL_SMART,
+          maxTokens: 500,
+          system: `You find new YouTube content for a 3-year-old's curated stream. Generate ${Math.min(remainingSlots + 3, 8)} diverse search queries. IMPORTANT: prioritize breadth and variety — do not over-index on the most recent taste signals. Mix different angles and formats. ${filterHint}`,
+          userMessage: `${directionBlock}\n\n${channelTaste ? channelTaste + '\n\n' : ''}Child's watch history sample (use as inspiration for what they enjoy, steer it toward the parent's intent above): ${tasteStr}\n\nGenerate diverse search queries. Return JSON array only.`,
+        });
+
+        const queries = JSON.parse(queriesRaw.replace(/```json|```/g, '').trim());
+
+        const rawCandidates = [];
+        for (const q of queries) {
+          if (rawCandidates.length >= remainingSlots * 3) break;
+          try {
+            const videos = await ytSearch({ query: q, maxResults: 6 });
+            for (const v of videos) {
+              if (!avoid.has(v.id)) rawCandidates.push(v);
+            }
+          } catch (e) {
+            console.warn(`Discovery search failed for "${q}":`, e.message);
+          }
+        }
+
+        const deduped = dedupe(rawCandidates);
+        const safe = await filterVideos(deduped, combinedFilters);
+        filtered += deduped.length - safe.length;
+
+        for (const v of safe.slice(0, remainingSlots)) {
+          results.push({ ...v, _source: 'discovery' });
+          avoid.add(v.id);
+        }
+      } catch (e) {
+        console.error('Discovery fill failed:', e.message);
       }
-    } catch (e) {
-      console.error('Discovery fill failed:', e.message);
-      // Non-fatal — return whatever rotation gave us
     }
   }
 

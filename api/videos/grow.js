@@ -53,41 +53,78 @@ export default async function handler(req, res) {
     const context = contextParts.join('\n');
 
     const filterHint = 'NEVER suggest reaction videos, fail compilations, prank videos, clickbait channels, unboxing hauls, Elsagate content (adults imitating cartoon characters), or overstimulation rapid-cut videos.';
+    const combinedFilters = playlistFilters + buildBlacklistScreenBlock(blacklistedChannels);
+    let totalFiltered = 0;
 
-    // Build channel taste signals
-    const channelTaste = buildChannelTasteBlock(preferredChannels, blacklistedChannels);
+    // Step 1a: Hard-fetch from preferred channels (~60% of target)
+    const preferredTarget = preferredChannels.length > 0 ? Math.ceil(limit * 0.6) : 0;
+    let preferredVideos = [];
 
-    // Step 1: Claude generates diverse search queries
-    const queriesRaw = await callClaude({
-      model: ANTHROPIC_MODEL_SMART,
-      maxTokens: 300,
-      system: `You generate YouTube search queries to grow a kids playlist for a 3-year-old. Based on the playlist context, generate 5 diverse search queries to find MORE similar videos. Return ONLY a JSON array of search query strings. Vary the queries — mix specific titles, channels, compilations, and related topics. ${filterHint}`,
-      userMessage: context + (channelTaste ? '\n\n' + channelTaste : ''),
-    });
-
-    const queries = JSON.parse(queriesRaw.replace(/```json|```/g, '').trim());
-    if (!Array.isArray(queries) || !queries.length) throw new Error('No queries generated');
-
-    // Step 2: Search YouTube, exclude existing videos
-    const rawCandidates = [];
-    for (const q of queries) {
-      if (rawCandidates.length >= limit * 3) break; // enough to filter from
+    if (preferredTarget > 0) {
       try {
-        const videos = await ytSearch({ query: q, maxResults: 6 });
-        for (const v of videos) {
-          if (!existingSet.has(v.id)) rawCandidates.push(v);
+        const prefCandidates = [];
+        for (const ch of preferredChannels) {
+          if (prefCandidates.length >= preferredTarget * 3) break;
+          try {
+            const videos = await ytSearch({ query: `"${ch}" for kids`, maxResults: 6 });
+            for (const v of videos) {
+              if (!existingSet.has(v.id)) prefCandidates.push(v);
+            }
+          } catch (e) {
+            console.warn(`Preferred channel search failed for "${ch}":`, e.message);
+          }
         }
+        const prefDeduped = dedupe(prefCandidates);
+        const prefSafe = await filterVideos(prefDeduped, combinedFilters);
+        totalFiltered += prefDeduped.length - prefSafe.length;
+        preferredVideos = prefSafe.slice(0, preferredTarget).map(v => ({ ...v, summary: '', weight: 0 }));
+        // Track preferred IDs so broader discovery doesn't duplicate
+        preferredVideos.forEach(v => existingSet.add(v.id));
       } catch (e) {
-        console.warn(`YouTube search failed for "${q}":`, e.message);
+        console.warn('Preferred channel fetch failed (non-fatal):', e.message);
       }
     }
 
-    const deduped = dedupe(rawCandidates);
+    // Step 1b: Broader AI discovery for remaining slots
+    const remainingTarget = limit - preferredVideos.length;
+    let discoveryVideos = [];
 
-    // Step 3: Filter through content rules + blacklisted channels
-    const combinedFilters = playlistFilters + buildBlacklistScreenBlock(blacklistedChannels);
-    const filtered = await filterVideos(deduped, combinedFilters);
-    const newVideos = filtered.slice(0, limit).map(v => ({ ...v, summary: '', weight: 0 }));
+    if (remainingTarget > 0) {
+      // Build channel taste signals (AI pattern inference)
+      const channelTaste = buildChannelTasteBlock(preferredChannels, blacklistedChannels);
+
+      const queriesRaw = await callClaude({
+        model: ANTHROPIC_MODEL_SMART,
+        maxTokens: 300,
+        system: `You generate YouTube search queries to grow a kids playlist for a 3-year-old. Based on the playlist context, generate 5 diverse search queries to find MORE similar videos. Return ONLY a JSON array of search query strings. Vary the queries — mix specific titles, channels, compilations, and related topics. ${filterHint}`,
+        userMessage: context + (channelTaste ? '\n\n' + channelTaste : ''),
+      });
+
+      const queries = JSON.parse(queriesRaw.replace(/```json|```/g, '').trim());
+      if (!Array.isArray(queries) || !queries.length) throw new Error('No queries generated');
+
+      // Step 2: Search YouTube, exclude existing videos
+      const rawCandidates = [];
+      for (const q of queries) {
+        if (rawCandidates.length >= remainingTarget * 3) break;
+        try {
+          const videos = await ytSearch({ query: q, maxResults: 6 });
+          for (const v of videos) {
+            if (!existingSet.has(v.id)) rawCandidates.push(v);
+          }
+        } catch (e) {
+          console.warn(`YouTube search failed for "${q}":`, e.message);
+        }
+      }
+
+      const deduped = dedupe(rawCandidates);
+      const filtered = await filterVideos(deduped, combinedFilters);
+      totalFiltered += deduped.length - filtered.length;
+      discoveryVideos = filtered.slice(0, remainingTarget).map(v => ({ ...v, summary: '', weight: 0 }));
+    }
+
+    // Combine preferred + discovery
+    const newVideos = [...preferredVideos, ...discoveryVideos];
 
     // Step 4: Generate summaries in one Claude call
     if (newVideos.length > 0) {
@@ -108,7 +145,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       videos: newVideos,
-      filtered: deduped.length - filtered.length,
+      filtered: totalFiltered,
     });
 
   } catch (err) {
