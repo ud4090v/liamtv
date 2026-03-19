@@ -18,7 +18,7 @@
  *   { videos: [{id, title, channel, thumb, summary, weight}], filtered: number }
  */
 
-import { cors, callClaude, ytSearch, filterVideos, dedupe, ANTHROPIC_MODEL_SMART, ANTHROPIC_MODEL_FAST } from '../_lib.js';
+import { cors, callClaude, ytSearch, filterVideos, dedupe, ANTHROPIC_MODEL_SMART, ANTHROPIC_MODEL_FAST, buildChannelTasteBlock, buildBlacklistScreenBlock } from '../_lib.js';
 
 export default async function handler(req, res) {
   cors(res);
@@ -32,6 +32,8 @@ export default async function handler(req, res) {
     searchHistory = [],
     topWatched = [],
     playlistFilters = '',
+    preferredChannels = [],
+    blacklistedChannels = [],
     targetCount = 8,
   } = req.body || {};
 
@@ -52,12 +54,15 @@ export default async function handler(req, res) {
 
     const filterHint = 'NEVER suggest reaction videos, fail compilations, prank videos, clickbait channels, unboxing hauls, Elsagate content (adults imitating cartoon characters), or overstimulation rapid-cut videos.';
 
+    // Build channel taste signals
+    const channelTaste = buildChannelTasteBlock(preferredChannels, blacklistedChannels);
+
     // Step 1: Claude generates diverse search queries
     const queriesRaw = await callClaude({
       model: ANTHROPIC_MODEL_SMART,
       maxTokens: 300,
       system: `You generate YouTube search queries to grow a kids playlist for a 3-year-old. Based on the playlist context, generate 5 diverse search queries to find MORE similar videos. Return ONLY a JSON array of search query strings. Vary the queries — mix specific titles, channels, compilations, and related topics. ${filterHint}`,
-      userMessage: context,
+      userMessage: context + (channelTaste ? '\n\n' + channelTaste : ''),
     });
 
     const queries = JSON.parse(queriesRaw.replace(/```json|```/g, '').trim());
@@ -79,8 +84,9 @@ export default async function handler(req, res) {
 
     const deduped = dedupe(rawCandidates);
 
-    // Step 3: Filter through content rules
-    const filtered = await filterVideos(deduped, playlistFilters);
+    // Step 3: Filter through content rules + blacklisted channels
+    const combinedFilters = playlistFilters + buildBlacklistScreenBlock(blacklistedChannels);
+    const filtered = await filterVideos(deduped, combinedFilters);
     const newVideos = filtered.slice(0, limit).map(v => ({ ...v, summary: '', weight: 0 }));
 
     // Step 4: Generate summaries in one Claude call

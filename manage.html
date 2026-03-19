@@ -248,6 +248,22 @@ select option{background:#1c1c2e}
           style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;padding:12px 14px;outline:none;resize:vertical;min-height:90px;transition:border-color 0.2s;line-height:1.5"></textarea>
         <div class="hint" style="margin-top:8px">💡 Example: "no animated content, only real cars and trucks", "no animals at all, just machines"</div>
         <div class="divider"></div>
+        <div class="section-title" style="font-size:15px;margin-bottom:8px"><span>⭐</span> Preferred Channels</div>
+        <div class="hint" style="margin-bottom:10px">Channels you like — AI will discover similar content and source ~60% of new videos from these or similar channels. One per line.</div>
+        <textarea id="preferredChannels"
+          placeholder="e.g.&#10;Blippi&#10;Gecko's Garage&#10;CoComelon"
+          oninput="saveSettings()"
+          class="filters-textarea"
+          style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;padding:12px 14px;outline:none;resize:vertical;min-height:72px;transition:border-color 0.2s;line-height:1.5"></textarea>
+        <div class="divider"></div>
+        <div class="section-title" style="font-size:15px;margin-bottom:8px"><span>🚫</span> Blacklisted Channels</div>
+        <div class="hint" style="margin-bottom:10px">Channels to block — AI will also avoid channels with similar style. One per line.</div>
+        <textarea id="blacklistedChannels"
+          placeholder="e.g.&#10;Ryan's World&#10;Diana and Roma"
+          oninput="saveSettings()"
+          class="filters-textarea"
+          style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;padding:12px 14px;outline:none;resize:vertical;min-height:72px;transition:border-color 0.2s;line-height:1.5"></textarea>
+        <div class="divider"></div>
         <div class="section-title" style="font-size:15px;margin-bottom:12px"><span>🌙</span> Default Sleep Timer</div>
         <div class="hint" style="margin-bottom:12px">Screen fades over last 5 minutes</div>
         <div class="timer-pills" id="timerPills">
@@ -318,7 +334,11 @@ select option{background:#1c1c2e}
           </div>
         </div>
         <div class="divider"></div>
-        <button class="btn btn-danger" onclick="confirmDeletePlaylist()">🗑 Delete This Playlist</button>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <button class="btn btn-primary" id="resetPlaylistBtn" onclick="resetPlaylist()">🔄 Reset Playlist</button>
+          <button class="btn btn-danger" onclick="confirmDeletePlaylist()">🗑 Delete This Playlist</button>
+        </div>
+        <div class="hint" style="margin-top:8px">Reset wipes all videos and discovers 25 fresh ones using your current settings.</div>
       </div>
     </div>
   </div>
@@ -378,7 +398,8 @@ async function apiVideoMeta(id) {
 let currentPlaylistName = null;
 let playlist = [];
 let settings = { channelName: '', playOrder: 'sequence', sleepTimer: 30, contentFilters: '',
-                 minWatchCount: 3, discoveryRatio: 0.4, skipThreshold: 3, parentDirection: '' };
+                 minWatchCount: 3, discoveryRatio: 0.4, skipThreshold: 3, parentDirection: '',
+                 preferredChannels: [], blacklistedChannels: [] };
 let selectedSearchResults = new Set();
 let searchResultCache = [];
 let syncing = false;
@@ -428,14 +449,19 @@ function goHome() { loadHome(); }
 async function openPlaylist(name) {
   currentPlaylistName = name;
   playlist = [];
-  settings = { channelName: name, playOrder: 'sequence', sleepTimer: 30 };
+  settings = { channelName: name, playOrder: 'sequence', sleepTimer: 30, contentFilters: '',
+               minWatchCount: 3, discoveryRatio: 0.4, skipThreshold: 3, parentDirection: '',
+               preferredChannels: [], blacklistedChannels: [] };
   selectedSearchResults.clear();
   searchResultCache = [];
 
   showView('editor');
   switchTab('manual');
   document.getElementById('backBtn').style.display = 'block';
-  document.getElementById('headerActions').innerHTML = `<button class="btn btn-secondary btn-sm" onclick="switchTab('settings')">⚙️ Settings</button>`;
+  document.getElementById('headerActions').innerHTML = `
+    <button class="btn btn-secondary btn-sm" id="gentleRefreshBtn" onclick="triggerRefresh('gentle')" title="Reload playlist on TV">🔄 Gentle</button>
+    <button class="btn btn-primary btn-sm" id="forcedRefreshBtn" onclick="triggerRefresh('forced')" title="Force TV to next video">⚡ Force</button>
+    <button class="btn btn-secondary btn-sm" onclick="switchTab('settings')">⚙️ Settings</button>`;
   document.getElementById('playlistEl').innerHTML = '<div class="loading-row"><div class="spinner"></div> Loading...</div>';
   document.getElementById('headerTitle').textContent = '...';
 
@@ -449,6 +475,11 @@ async function openPlaylist(name) {
   }
 
   document.getElementById('headerTitle').textContent = settings.channelName || name;
+  // Initialize prev-values for auto-scan tracking (don't scan on first load)
+  _prevContentFilters = settings.contentFilters || '';
+  _prevBlacklisted = (settings.blacklistedChannels || []).join('|');
+  _prevPreferred = (settings.preferredChannels || []).join('|');
+  _prevParentDirection = settings.parentDirection || '';
   applySettings();
   renderPlaylist();
   setTimer(settings.sleepTimer, true);
@@ -506,6 +537,42 @@ async function confirmDeletePlaylist() {
   }
 }
 
+// Feature 6: Reset Playlist — wipe and discover 25 fresh videos
+async function resetPlaylist() {
+  if (!currentPlaylistName) return;
+  const btn = document.getElementById('resetPlaylistBtn');
+  const original = btn.innerHTML;
+  btn.innerHTML = '🔄 Discovering...';
+  btn.disabled = true;
+  try {
+    const r = await fetch('/api/videos/reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        playlistName: currentPlaylistName,
+        channelTitle: settings.channelName || currentPlaylistName,
+        playlistFilters: settings.contentFilters || '',
+        parentDirection: settings.parentDirection || '',
+        preferredChannels: settings.preferredChannels || [],
+        blacklistedChannels: settings.blacklistedChannels || [],
+      }),
+    });
+    const data = await r.json();
+    if (data.videos && data.videos.length > 0) {
+      playlist = data.videos;
+      renderPlaylist();
+      await syncToServer();
+      showToast(`✅ Reset: ${data.videos.length} fresh videos${data.filtered ? ` (${data.filtered} filtered out)` : ''}`, 'success');
+    } else {
+      showToast('⚠️ No videos found — try adjusting your settings', 'error');
+    }
+  } catch (e) {
+    showToast('⚠️ Reset failed: ' + e.message, 'error');
+  }
+  btn.innerHTML = original;
+  btn.disabled = false;
+}
+
 // ─── VIEW SWITCHER ───
 function showView(v) {
   document.getElementById('view-home').style.display = v === 'home' ? 'block' : 'none';
@@ -531,7 +598,15 @@ function applySettings() {
   document.getElementById('discoveryRatio').value = settings.discoveryRatio !== undefined ? settings.discoveryRatio : 0.4;
   document.getElementById('skipThreshold').value = settings.skipThreshold !== undefined ? settings.skipThreshold : 3;
   document.getElementById('parentDirection').value = settings.parentDirection || '';
+  document.getElementById('preferredChannels').value = (settings.preferredChannels || []).join('\n');
+  document.getElementById('blacklistedChannels').value = (settings.blacklistedChannels || []).join('\n');
 }
+// Track settings that trigger auto-scan on change
+let _prevContentFilters = '';
+let _prevBlacklisted = '';
+let _prevPreferred = '';
+let _prevParentDirection = '';
+
 function saveSettings() {
   settings.channelName = document.getElementById('channelName').value;
   settings.playOrder = document.getElementById('playOrder').value;
@@ -540,8 +615,62 @@ function saveSettings() {
   settings.discoveryRatio = Math.min(0.9, Math.max(0.1, parseFloat(document.getElementById('discoveryRatio').value) || 0.4));
   settings.skipThreshold = parseInt(document.getElementById('skipThreshold').value) || 3;
   settings.parentDirection = document.getElementById('parentDirection').value.trim();
+
+  // Parse channel lists (one per line, filter empties)
+  const parseLines = (id) => document.getElementById(id).value.split('\n').map(s => s.trim()).filter(Boolean);
+  settings.preferredChannels = parseLines('preferredChannels');
+  settings.blacklistedChannels = parseLines('blacklistedChannels');
+
   document.getElementById('headerTitle').textContent = settings.channelName || currentPlaylistName;
+
+  // Check if filter/channel settings changed → trigger auto-scan (Feature 5)
+  const curFilters = settings.contentFilters;
+  const curBlacklist = settings.blacklistedChannels.join('|');
+  const curPreferred = settings.preferredChannels.join('|');
+  const curDirection = settings.parentDirection;
+  const filterChanged = curFilters !== _prevContentFilters || curBlacklist !== _prevBlacklisted ||
+                        curPreferred !== _prevPreferred || curDirection !== _prevParentDirection;
+
   syncToServer();
+
+  if (filterChanged && playlist.length > 0) {
+    _prevContentFilters = curFilters;
+    _prevBlacklisted = curBlacklist;
+    _prevPreferred = curPreferred;
+    _prevParentDirection = curDirection;
+    autoScanPlaylist();
+  }
+}
+
+// Feature 5: Auto-scan & remove videos that violate updated rules
+let _scanDebounce = null;
+async function autoScanPlaylist() {
+  // Debounce: wait 2s after last change before scanning
+  clearTimeout(_scanDebounce);
+  _scanDebounce = setTimeout(async () => {
+    if (!playlist.length) return;
+    try {
+      const r = await fetch('/api/videos/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          videos: playlist.map(v => ({ id: v.id, title: v.title, channel: v.channel, thumb: v.thumb })),
+          playlistFilters: settings.contentFilters || '',
+          blacklistedChannels: settings.blacklistedChannels || [],
+        }),
+      });
+      const data = await r.json();
+      if (data.removeIds && data.removeIds.length > 0) {
+        const removeSet = new Set(data.removeIds);
+        playlist = playlist.filter(v => !removeSet.has(v.id));
+        renderPlaylist();
+        syncToServer();
+        showToast(`🧹 Removed ${data.removeIds.length} video${data.removeIds.length > 1 ? 's' : ''} that no longer match rules`, 'success');
+      }
+    } catch (e) {
+      console.warn('Auto-scan failed (non-fatal):', e);
+    }
+  }, 2000);
 }
 
 // ─── TIMER ───

@@ -40,6 +40,36 @@ export function buildFilters(playlistFilters) {
   return parts.join('\n\n');
 }
 
+// Build channel taste signals block for Claude prompts
+export function buildChannelTasteBlock(preferredChannels, blacklistedChannels) {
+  const parts = [];
+  if (preferredChannels && preferredChannels.length) {
+    parts.push(
+      `=== PREFERRED CHANNELS (positive taste signals) ===\n` +
+      `Study these channels to understand the STYLE, QUALITY, and PATTERN the parent approves of. ` +
+      `Use them as inspiration — about 60% of discovered videos should come from these channels or channels with very similar style/quality/content-type. ` +
+      `The remaining 40% should be fresh discovery that still fits the same quality bar.\n` +
+      preferredChannels.map(c => `• ${c}`).join('\n')
+    );
+  }
+  if (blacklistedChannels && blacklistedChannels.length) {
+    parts.push(
+      `=== BLACKLISTED CHANNELS (negative taste signals) ===\n` +
+      `Study these channels to understand what the parent DISLIKES — the style, format, quality, and content patterns they represent. ` +
+      `NEVER include videos from these exact channels. Also avoid channels with similar style, format, or approach.\n` +
+      blacklistedChannels.map(c => `• ${c}`).join('\n')
+    );
+  }
+  return parts.join('\n\n');
+}
+
+// Build blacklist screening block for filterVideos-style checks
+export function buildBlacklistScreenBlock(blacklistedChannels) {
+  if (!blacklistedChannels || !blacklistedChannels.length) return '';
+  return `\n=== BLACKLISTED CHANNELS (always block) ===\nBlock ANY video from these channels or channels with very similar names:\n` +
+    blacklistedChannels.map(c => `• ${c}`).join('\n');
+}
+
 // ── Claude helper ──
 export async function callClaude({ model, system, userMessage, maxTokens }) {
   const apiKey = process.env.ANTHROPIC_API_KEY;

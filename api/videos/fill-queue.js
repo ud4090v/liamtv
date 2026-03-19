@@ -40,7 +40,7 @@
  *   }
  */
 
-import { cors, callClaude, ytSearch, filterVideos, dedupe, ANTHROPIC_MODEL_SMART } from '../_lib.js';
+import { cors, callClaude, ytSearch, filterVideos, dedupe, ANTHROPIC_MODEL_SMART, buildChannelTasteBlock, buildBlacklistScreenBlock } from '../_lib.js';
 
 export default async function handler(req, res) {
   cors(res);
@@ -52,6 +52,8 @@ export default async function handler(req, res) {
     avoidIds = [],
     playlistFilters = '',
     parentDirection = '',
+    preferredChannels = [],
+    blacklistedChannels = [],
     targetCount = 10,
     minWatchCount = 3,
     discoveryRatio = 0.4,
@@ -126,12 +128,15 @@ export default async function handler(req, res) {
         ? `PARENT'S INTENT: "${parentDirection}"\nThis is the primary goal. Every query should find content that serves this intent while still matching the child's interests. Find videos where BOTH are true — the child will enjoy it AND it supports the parent's direction. Do not ignore either signal.`
         : `No specific parent direction set — use broad, balanced discovery across educational and entertaining themes.`;
 
+      // Build channel taste signals
+      const channelTaste = buildChannelTasteBlock(preferredChannels, blacklistedChannels);
+
       // Ask Claude for diverse queries — parent direction steers, taste informs
       const queriesRaw = await callClaude({
         model: ANTHROPIC_MODEL_SMART,
         maxTokens: 500,
         system: `You find new YouTube content for a 3-year-old's curated stream. Generate ${Math.min(discoverySlots + 3, 8)} diverse search queries. IMPORTANT: prioritize breadth and variety — do not over-index on the most recent taste signals. Mix different angles and formats. ${filterHint}`,
-        userMessage: `${directionBlock}\n\nChild's watch history sample (use as inspiration for what they enjoy, steer it toward the parent's intent above): ${tasteStr}\n\nGenerate diverse search queries. Return JSON array only.`,
+        userMessage: `${directionBlock}\n\n${channelTaste ? channelTaste + '\n\n' : ''}Child's watch history sample (use as inspiration for what they enjoy, steer it toward the parent's intent above): ${tasteStr}\n\nGenerate diverse search queries. Return JSON array only.`,
       });
 
       const queries = JSON.parse(queriesRaw.replace(/```json|```/g, '').trim());
@@ -152,8 +157,9 @@ export default async function handler(req, res) {
 
       const deduped = dedupe(rawCandidates);
 
-      // Filter through content rules
-      const safe = await filterVideos(deduped, playlistFilters);
+      // Filter through content rules + blacklisted channels
+      const combinedFilters = playlistFilters + buildBlacklistScreenBlock(blacklistedChannels);
+      const safe = await filterVideos(deduped, combinedFilters);
       filtered = deduped.length - safe.length;
 
       for (const v of safe.slice(0, discoverySlots)) {

@@ -361,7 +361,11 @@ async function apiFillQueue(history, avoidIds, playlistFilters, parentDirection,
   const resp = await fetch('/api/videos/fill-queue', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ history, avoidIds, playlistFilters, parentDirection, targetCount, minWatchCount, discoveryRatio }),
+    body: JSON.stringify({
+      history, avoidIds, playlistFilters, parentDirection, targetCount, minWatchCount, discoveryRatio,
+      preferredChannels: settings.preferredChannels || [],
+      blacklistedChannels: settings.blacklistedChannels || [],
+    }),
   });
   if (!resp.ok) throw new Error(`Fill-queue API error ${resp.status}`);
   return resp.json(); // { videos[], allRotated, filtered }
@@ -524,6 +528,8 @@ async function checkAutoGrow(force) {
       searchHistory: settings.prompts || [],
       topWatched,
       playlistFilters: settings.contentFilters || '',
+      preferredChannels: settings.preferredChannels || [],
+      blacklistedChannels: settings.blacklistedChannels || [],
       targetCount: 8,
     });
 
