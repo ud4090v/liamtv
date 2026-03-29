@@ -96,10 +96,87 @@ export async function callClaude({ model, system, userMessage, maxTokens }) {
   return data.content[0].text;
 }
 
-// ── YouTube search helper ──
+// ── YouTube Search Cache (Vercel Blob, 24h TTL) ──
+//
+// Cache key: yt-cache/{normalised_query}_n{maxResults}.json
+// Normalisation: lowercase, collapse whitespace, trim — same effective query = same key.
+// TTL is checked on read; stale blobs are replaced on next miss.
+// Blob is used (not KV) because BLOB_READ_WRITE_TOKEN is already provisioned.
+// Cache only applies to ytSearch — ytVideoMeta is not cached (single-video, cheap).
+//
+// Quota savings:
+//   fill-queue: up to 4 searches × 100 units = 400 units/call → 0 on cache hit
+//   grow:       up to 5 searches × 100 units = 500 units/call → 0 on cache hit
+//   search:     up to 6 searches × 100 units = 600 units/call → 0 on cache hit
+
+const YT_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+// Simple consistent hash for use as a filename-safe cache key.
+// We use a lightweight FNV-1a-style digest over the canonical key string.
+// This avoids a crypto import and keeps the function synchronous.
+function cacheKeyHash(query, maxResults) {
+  const canonical = `${query.toLowerCase().replace(/\s+/g, ' ').trim()}|n${maxResults}`;
+  // FNV-1a 32-bit
+  let hash = 2166136261;
+  for (let i = 0; i < canonical.length; i++) {
+    hash ^= canonical.charCodeAt(i);
+    hash = (hash * 16777619) >>> 0;
+  }
+  return `yt-cache/${hash.toString(16)}.json`;
+}
+
+async function ytCacheGet(blobToken, path) {
+  try {
+    const { list } = await import('@vercel/blob');
+    const { blobs } = await list({ prefix: path, token: blobToken });
+    if (!blobs.length) return null;
+    const blob = blobs[0];
+    const resp = await fetch(blob.url);
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    if (!data.cachedAt || Date.now() - data.cachedAt > YT_CACHE_TTL_MS) {
+      return null; // expired — treat as miss, will be overwritten
+    }
+    return data.videos;
+  } catch (e) {
+    console.warn('[yt-cache] read error (non-fatal):', e.message);
+    return null;
+  }
+}
+
+async function ytCachePut(blobToken, path, videos) {
+  try {
+    const { put } = await import('@vercel/blob');
+    const payload = JSON.stringify({ cachedAt: Date.now(), videos });
+    await put(path, payload, {
+      access: 'public',
+      contentType: 'application/json',
+      token: blobToken,
+      addRandomSuffix: false,
+    });
+  } catch (e) {
+    console.warn('[yt-cache] write error (non-fatal):', e.message);
+  }
+}
+
+// ── YouTube search helper (cache-wrapped) ──
 export async function ytSearch({ query, maxResults = 10 }) {
   const apiKey = process.env.YOUTUBE_API_KEY;
   if (!apiKey) throw new Error('YOUTUBE_API_KEY not configured');
+
+  const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+  const cachePath = blobToken ? cacheKeyHash(query, maxResults) : null;
+
+  // ── Cache read ──
+  if (cachePath) {
+    const cached = await ytCacheGet(blobToken, cachePath);
+    if (cached) {
+      console.log(`[yt-cache] HIT query="${query}" n=${maxResults} → ${cached.length} videos, 0 quota units`);
+      return cached;
+    }
+  }
+
+  // ── Cache miss → live API call ──
   const params = new URLSearchParams({
     part: 'snippet',
     q: query,
@@ -112,12 +189,22 @@ export async function ytSearch({ query, maxResults = 10 }) {
   const resp = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`);
   if (!resp.ok) throw new Error(`YouTube API error ${resp.status}`);
   const data = await resp.json();
-  return (data.items || []).map(item => ({
+
+  const videos = (data.items || []).map(item => ({
     id: item.id.videoId,
     title: item.snippet.title,
     channel: item.snippet.channelTitle,
     thumb: item.snippet.thumbnails?.medium?.url || `https://img.youtube.com/vi/${item.id.videoId}/mqdefault.jpg`,
   }));
+
+  console.log(`[yt-cache] MISS query="${query}" n=${maxResults} → ${videos.length} videos, ~100 quota units consumed`);
+
+  // ── Cache write (non-blocking) ──
+  if (cachePath) {
+    ytCachePut(blobToken, cachePath, videos).catch(() => {});
+  }
+
+  return videos;
 }
 
 // ── YouTube video meta helper ──
