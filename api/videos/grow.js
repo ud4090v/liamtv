@@ -63,7 +63,11 @@ export default async function handler(req, res) {
     if (preferredTarget > 0) {
       try {
         const prefCandidates = [];
-        for (const ch of preferredChannels) {
+        // Cap preferred channel searches at 2 to conserve YouTube quota (100 units each).
+        // Rotate through channels with random offset so all get coverage over time.
+        const gStartIdx = Math.floor(Math.random() * preferredChannels.length);
+        const gChannelsToSearch = [...preferredChannels.slice(gStartIdx), ...preferredChannels.slice(0, gStartIdx)].slice(0, 2);
+        for (const ch of gChannelsToSearch) {
           if (prefCandidates.length >= preferredTarget * 3) break;
           try {
             const videos = await ytSearch({ query: `"${ch}" for kids`, maxResults: 6 });
@@ -96,7 +100,7 @@ export default async function handler(req, res) {
       const queriesRaw = await callClaude({
         model: ANTHROPIC_MODEL_SMART,
         maxTokens: 300,
-        system: `You generate YouTube search queries to grow a kids playlist for a 3-year-old. Based on the playlist context, generate 5 diverse search queries to find MORE similar videos. Return ONLY a JSON array of search query strings. Vary the queries — mix specific titles, channels, compilations, and related topics. ${filterHint}`,
+        system: `You generate YouTube search queries to grow a kids playlist for a 3-year-old. Based on the playlist context, generate 3 diverse search queries to find MORE similar videos. Return ONLY a JSON array of search query strings. Vary the queries — mix specific titles, channels, compilations, and related topics. ${filterHint}`,
         userMessage: context + (channelTaste ? '\n\n' + channelTaste : ''),
       });
 

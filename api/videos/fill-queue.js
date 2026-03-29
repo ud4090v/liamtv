@@ -122,8 +122,11 @@ export default async function handler(req, res) {
     if (preferredSlots > 0) {
       try {
         const prefCandidates = [];
-        // Search YouTube directly for each preferred channel
-        for (const ch of preferredChannels) {
+        // Search YouTube for preferred channels — cap at 2 searches to conserve quota.
+        // Rotate through channels using a random offset so all get coverage over time.
+        const startIdx = Math.floor(Math.random() * preferredChannels.length);
+        const channelsToSearch = [...preferredChannels.slice(startIdx), ...preferredChannels.slice(0, startIdx)].slice(0, 2);
+        for (const ch of channelsToSearch) {
           if (prefCandidates.length >= preferredSlots * 3) break;
           try {
             const videos = await ytSearch({ query: `"${ch}" for kids`, maxResults: 6 });
@@ -170,7 +173,7 @@ export default async function handler(req, res) {
         const queriesRaw = await callClaude({
           model: ANTHROPIC_MODEL_SMART,
           maxTokens: 500,
-          system: `You find new YouTube content for a 3-year-old's curated stream. Generate ${Math.min(remainingSlots + 3, 8)} diverse search queries. IMPORTANT: prioritize breadth and variety — do not over-index on the most recent taste signals. Mix different angles and formats. ${filterHint}`,
+          system: `You find new YouTube content for a 3-year-old's curated stream. Generate ${Math.min(remainingSlots + 2, 4)} diverse search queries. IMPORTANT: prioritize breadth and variety — do not over-index on the most recent taste signals. Mix different angles and formats. ${filterHint}`,
           userMessage: `${directionBlock}\n\n${channelTaste ? channelTaste + '\n\n' : ''}Child's watch history sample (use as inspiration for what they enjoy, steer it toward the parent's intent above): ${tasteStr}\n\nGenerate diverse search queries. Return JSON array only.`,
         });
 
