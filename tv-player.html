@@ -735,6 +735,29 @@ async function liamTVFillQueue() {
     console.warn('LiamTV fill failed:', e.message);
   }
 
+  // ── Quota fallback: if API returned nothing but we have history, play from history ──
+  // This handles YouTube quota exhaustion gracefully without stalling playback.
+  if (liamTVQueue.length === 0 && liamTVHistory.length > 0) {
+    console.warn('LiamTV: API returned empty queue (quota exceeded?), falling back to history rotation');
+    const avoidSet = new Set(avoidIds);
+    // Prefer least-watched, shuffle within equal watch counts
+    const eligible = liamTVHistory.filter(v => !avoidSet.has(v.id) && v.id);
+    const fallback = eligible.length > 0 ? eligible : liamTVHistory.filter(v => v.id); // if all played, use all
+    const shuffled = [...fallback].sort((a, b) => {
+      const wDiff = (a.watchCount || 0) - (b.watchCount || 0);
+      return wDiff !== 0 ? wDiff : (Math.random() - 0.5);
+    });
+    for (const v of shuffled.slice(0, needed)) {
+      if (!liamTVQueued.has(v.id)) {
+        liamTVQueued.add(v.id);
+        liamTVQueue.push({ id: v.id, title: v.title, channel: v.channel, thumb: v.thumb, _source: 'fallback-history' });
+      }
+    }
+    if (liamTVQueue.length > 0) {
+      console.log(`LiamTV: fallback loaded ${liamTVQueue.length} videos from history`);
+    }
+  }
+
   liamTVFilling = false;
 }
 
@@ -759,10 +782,16 @@ async function liamTVNext() {
     const picked = liamTVQueue.shift();
 
     if (!picked) {
-      // Fill returned nothing — APIs down. Retry after a delay.
+      // Fill returned nothing — no history and APIs down (quota exhausted).
       liamTVLoading = false;
-      console.warn('liamTVNext: queue empty after fill, retrying in 3s');
-      setTimeout(() => liamTVNext(), 3000);
+      console.warn('liamTVNext: queue empty after fill — no history available and APIs down');
+      // Show user-friendly message instead of hammering APIs in a retry loop
+      const btn = document.getElementById('homeLiamBtn');
+      if (btn) {
+        const desc = btn.querySelector('.ltv-desc');
+        if (desc) desc.textContent = '⏳ YouTube quota reset at ~midnight PT — try a playlist below';
+      }
+      document.getElementById('homeScreen').style.display = '';
       return;
     }
 
