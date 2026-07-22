@@ -1,5 +1,8 @@
 // ─── Shared utilities for LiamTV API layer ───
 
+import { put as realPut, list as realList } from '@vercel/blob';
+import { createHash } from 'crypto';
+
 export const ANTHROPIC_MODEL_SMART = 'claude-sonnet-4-20250514';
 export const ANTHROPIC_MODEL_FAST  = 'claude-haiku-4-20250514';
 
@@ -96,6 +99,7 @@ export async function callClaude({ model, system, userMessage, maxTokens }) {
   return data.content[0].text;
 }
 
+
 // ── YouTube Search Cache (Vercel Blob, 24h TTL) ──
 //
 // Cache key: yt-cache/{normalised_query}_n{maxResults}.json
@@ -160,6 +164,36 @@ async function ytCachePut(blobToken, path, videos) {
 }
 
 // ── YouTube search helper (cache-wrapped) ──
+
+// ── Test seams (null in production → real implementations) ──
+let __testCallClaude = null;
+let __testBlob = null;
+
+export function __setTestCallClaude(fn) {
+  __testCallClaude = fn || null;
+}
+
+export function __setTestBlob(blobApi) {
+  __testBlob = blobApi || null;
+}
+
+async function invokeClaude(args) {
+  if (__testCallClaude) return __testCallClaude(args);
+  return callClaude(args);
+}
+
+async function put(path, payload, options) {
+  if (__testBlob?.put) return __testBlob.put(path, payload, options);
+  return realPut(path, payload, options);
+}
+
+async function list(opts) {
+  if (__testBlob?.list) return __testBlob.list(opts);
+  return realList(opts);
+}
+
+// ── YouTube search helper ──
+
 export async function ytSearch({ query, maxResults = 10 }) {
   const apiKey = process.env.YOUTUBE_API_KEY;
   if (!apiKey) throw new Error('YOUTUBE_API_KEY not configured');
@@ -220,41 +254,121 @@ export async function ytVideoMeta(id) {
   return { id, title: s.title, channel: s.channelTitle, thumb: s.thumbnails?.medium?.url || `https://img.youtube.com/vi/${id}/mqdefault.jpg` };
 }
 
+// ── Screening cache (fail-closed fallback) ──
+const SCREENING_CACHE_PREFIX = 'screening-cache';
+const SCREENING_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
+
+function hashString(s) {
+  return createHash('sha256').update(s).digest('hex');
+}
+
+async function getCachedScreening(key) {
+  try {
+    const { blobs } = await list({ prefix: `${SCREENING_CACHE_PREFIX}/${key}` });
+    if (!blobs.length) return null;
+    const newest = blobs.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt))[0];
+    const ageMs = Date.now() - new Date(newest.uploadedAt).getTime();
+    if (ageMs > SCREENING_CACHE_TTL_MS) return null;
+    // Test mock may attach .content to avoid real fetch
+    if (newest.content) {
+      try { return JSON.parse(newest.content); } catch (_) { /* fall through */ }
+    }
+    const resp = await fetch(newest.url);
+    if (!resp.ok) return null;
+    return await resp.json();
+  } catch (e) {
+    console.warn('getCachedScreening failed (fail-closed will trigger):', e.message);
+    return null;
+  }
+}
+
+async function setCachedScreening(key, result) {
+  try {
+    const payload = JSON.stringify({ result, cachedAt: new Date().toISOString() });
+    await put(`${SCREENING_CACHE_PREFIX}/${key}/${Date.now()}.json`, payload, {
+      access: 'public',
+      contentType: 'application/json',
+      addRandomSuffix: false,
+    });
+  } catch (e) {
+    console.warn('setCachedScreening failed (non-fatal):', e.message);
+  }
+}
+
+async function notifyParentFilterFailed(context) {
+  // Phase 1.5: real notification UI. Hotfix logs + writes a failures blob for visibility.
+  console.error('[LiamTV] Content filter failed in fail-closed mode:', JSON.stringify(context));
+  try {
+    await put(`_filter-failures/${Date.now()}.json`, JSON.stringify({
+      timestamp: new Date().toISOString(),
+      ...context,
+    }), {
+      access: 'public',
+      contentType: 'application/json',
+      addRandomSuffix: true,
+    });
+  } catch (e) {
+    // Best-effort. Don't fail the request if notification write fails.
+  }
+}
+
 // ── Batch filter: returns only videos that pass all rules ──
-// Sends one Claude Haiku call for the whole batch. Fail-open.
+// Sends one Claude Haiku call for the whole batch. Fail-closed on error.
 export async function filterVideos(videos, playlistFilters) {
   if (!videos.length) return videos;
   const filterBlock = buildFilters(playlistFilters);
-  const list = videos.map((v, i) => `${i + 1}. [${v.channel}] ${v.title}`).join('\n');
+  const listStr = videos.map((v, i) => `${i + 1}. [${v.channel}] ${v.title}`).join('\n');
+  const cacheKey = `batch/${hashString(filterBlock + '|' + videos.map(v => v.id).sort().join(','))}`;
   try {
-    const raw = await callClaude({
+    const raw = await invokeClaude({
       model: ANTHROPIC_MODEL_FAST,
       maxTokens: 200,
-      system: 'You screen YouTube videos for a parent protecting a 3-year-old. Given a numbered list of videos and content filter rules, return ONLY a JSON array of the 1-based numbers that should be BLOCKED. Example: [2,5]. If none blocked, return []. No other text.',
-      userMessage: filterBlock + '\n\nVideos:\n' + list + '\n\nWhich numbers are blocked? Return JSON array only.',
+      system: 'You screen YouTube videos for a parent protecting a young child. Given a numbered list of videos and content filter rules, return ONLY a JSON array of the 1-based numbers that should be BLOCKED. Example: [2,5]. If none blocked, return []. No other text.',
+      userMessage: filterBlock + '\n\nVideos:\n' + listStr + '\n\nWhich numbers are blocked? Return JSON array only.',
     });
     const blocked = new Set(JSON.parse(raw.replace(/```json|```/g, '').trim()).map(n => n - 1));
-    return videos.filter((_, i) => !blocked.has(i));
+    const filtered = videos.filter((_, i) => !blocked.has(i));
+    // Cache the good result (best-effort, non-blocking on success)
+    await setCachedScreening(cacheKey, { blocked: Array.from(blocked) });
+    return filtered;
   } catch (e) {
-    console.warn('filterVideos failed (fail-open):', e.message);
-    return videos;
+    console.warn('filterVideos failed (falling back to cache or fail-closed):', e.message);
+    const cached = await getCachedScreening(cacheKey);
+    if (cached?.result?.blocked) {
+      const blocked = new Set(cached.result.blocked);
+      return videos.filter((_, i) => !blocked.has(i));
+    }
+    // No usable cache — fail closed: return empty list + notify parent.
+    await notifyParentFilterFailed({ fn: 'filterVideos', error: e.message, videoCount: videos.length });
+    return [];
   }
 }
 
 // ── Screen single video ──
+// Fail-closed on error: block when filter unavailable and no cache.
 export async function screenVideo(title, channel, playlistFilters) {
   const filterBlock = buildFilters(playlistFilters);
+  const cacheKey = `single/${hashString(filterBlock + '|' + (title || '') + '|' + (channel || ''))}`;
   try {
-    const raw = await callClaude({
+    const raw = await invokeClaude({
       model: ANTHROPIC_MODEL_FAST,
       maxTokens: 80,
-      system: 'You screen YouTube videos for a parent protecting a 3-year-old. Reply with JSON only: {"blocked": true/false, "reason": "short reason or empty string"}. No other text.',
+      system: 'You screen YouTube videos for a parent protecting a young child. Reply with JSON only: {"blocked": true/false, "reason": "short reason or empty string"}. No other text.',
       userMessage: filterBlock + '\n\nVideo title: ' + title + '\nChannel: ' + channel + '\n\nIs this video blocked by any of the above rules?',
     });
     const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
+    // Cache the good verdict (best-effort)
+    await setCachedScreening(cacheKey, { blocked: !!parsed.blocked, reason: parsed.reason || '' });
     return { blocked: !!parsed.blocked, reason: parsed.reason || '' };
   } catch (e) {
-    return { blocked: false, reason: '' }; // fail-open
+    console.warn('screenVideo failed (falling back to cache or fail-closed):', e.message);
+    const cached = await getCachedScreening(cacheKey);
+    if (cached?.result) {
+      return { blocked: !!cached.result.blocked, reason: cached.result.reason || '' };
+    }
+    // No usable cache — fail closed: block this video.
+    await notifyParentFilterFailed({ fn: 'screenVideo', error: e.message, title, channel });
+    return { blocked: true, reason: 'Filter unavailable, blocking by default (safety)' };
   }
 }
 
@@ -270,3 +384,13 @@ export function cors(res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
 }
+
+// Test-only exports for cache assertions (no production callers)
+export const __TEST_ONLY__ = {
+  SCREENING_CACHE_PREFIX,
+  SCREENING_CACHE_TTL_MS,
+  hashString,
+  getCachedScreening,
+  setCachedScreening,
+  notifyParentFilterFailed,
+};
