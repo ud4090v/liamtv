@@ -28,7 +28,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
-const CHROME = '/usr/bin/google-chrome';
+const CHROME = process.env.CHROME_PATH || '/usr/bin/google-chrome';
 
 // ── Populated fixture ───────────────────────────────────────────────────────
 // Two real-looking playlists so playlist-card elements actually render.
@@ -342,6 +342,31 @@ async function testSurface(cdp, port, file, label, safetyFields) {
   assert(`${label}: Tab sweep reaches a playlist card`, reachedCard, `sweep=${homeSweep.length} steps`);
   assert(`${label}: Tab sweep reaches the new-card`, reachedNew);
   assert(`${label}: Tab sweep is not a dead end`, !homeSweep.every((d) => d === 'BODY'), `first=${homeSweep[0]}`);
+
+  // --- 1b. THE DELETE BUTTON IS KEYBOARD-REACHABLE ---
+  // .playlist-card-del is display:none and was revealed only by
+  // .playlist-card:hover, so a keyboard user could never reach Delete at
+  // all: :hover does not exist without a pointing device. The :focus-within
+  // reveal makes the button visible while focus is inside the card, which
+  // also puts it back into the sequential focus order. The assertion checks
+  // the ORDER, not just presence -- a del button that was merely present in
+  // the DOM but unreachable would still fail here.
+  const cardIdx = homeSweep.findIndex((d) => d.includes('.playlist-card'));
+  const delIdx = homeSweep.findIndex((d) => d.includes('.playlist-card-del'));
+  assert(`${label}: delete button is in the tab order`,
+    delIdx !== -1, delIdx === -1 ? 'never reached by Tab' : `reached at step ${delIdx}`);
+  assert(`${label}: delete button is reachable only AFTER the card takes focus`,
+    delIdx !== -1 && cardIdx !== -1 && delIdx > cardIdx,
+    `card@${cardIdx} del@${delIdx}`);
+  const delVisible = await evaluate(cdp, `(() => {
+    const card = document.querySelector('.playlist-card');
+    const del = card && card.querySelector('.playlist-card-del');
+    if (!del) return null;
+    card.focus();
+    return getComputedStyle(del).display;
+  })()`);
+  assert(`${label}: delete button is revealed when the card has focus`,
+    delVisible && delVisible !== 'none', `display=${delVisible}`);
 
   // --- 2. KEYBOARD OPENS THE EDITOR VIEW ---
   const focusedCard = await focusElement(cdp, '.playlist-card');
