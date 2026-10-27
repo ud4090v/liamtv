@@ -52,7 +52,6 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error('/api/videos/screen error:', err);
-    // Fail-open: return all passed if screening fails
-    return res.status(200).json({ passed: videos, blocked: [], error: err.message });
+    return res.status(500).json({ passed: [], blocked: videos, isBlocked: true, reason: 'Filter unavailable, blocking by default (safety)', error: err.message });
   }
 }

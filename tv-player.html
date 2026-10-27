@@ -330,7 +330,7 @@ async function apiScreenVideos(videos, playlistFilters) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ videos, playlistFilters }),
   });
-  if (!resp.ok) return { passed: videos, blocked: [] }; // fail-open
+  if (!resp.ok) return { passed: [], blocked: videos, isBlocked: true, reason: 'Filter unavailable, blocking by default (safety)' };
   return resp.json(); // { passed[], blocked[], isBlocked?, reason? }
 }
 
