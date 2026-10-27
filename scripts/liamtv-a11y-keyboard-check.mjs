@@ -29,6 +29,13 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
 const CHROME = process.env.CHROME_PATH || '/usr/bin/google-chrome';
+// BASE_URL lets the same assertions run against a DEPLOYED surface instead of
+// the local files. LIA-34 criterion 3 requires exactly that: proving the fix
+// reached production cannot be done by testing a local checkout. When set, the
+// local static server is not started and the real deployed API is used.
+const BASE_URL = (process.env.BASE_URL || '').replace(/\/+$/, '');
+const RESULT_FILE = process.env.RESULT_FILE || '/tmp/liamtv-a11y-keyboard-result.json';
+const DEPLOYED = BASE_URL !== '';
 
 // ── Populated fixture ───────────────────────────────────────────────────────
 // Two real-looking playlists so playlist-card elements actually render.
@@ -225,6 +232,21 @@ async function tabSweep(cdp, steps) {
   return seq;
 }
 
+// Wait until a selector matches. A deployed surface needs its real assets,
+// its real API round-trip and its own first paint, so a fixed sleep is not
+// enough: without this, a slow load is indistinguishable from a keyboard-dead
+// surface, and the run reports dozens of false accessibility failures.
+async function waitForSelector(cdp, selector, timeoutMs = 15000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const n = await evaluate(cdp,
+      `document.querySelectorAll(${JSON.stringify(selector)}).length`);
+    if (n > 0) return n;
+    await sleep(250);
+  }
+  return 0;
+}
+
 async function focusElement(cdp, selector) {
   return evaluate(cdp, `(() => {
     const el = document.querySelector(${JSON.stringify(selector)});
@@ -312,9 +334,14 @@ async function clickAt(cdp, selector) {
 }
 
 // ── The test body ──────────────────────────────────────────────────────────
-async function testSurface(cdp, port, file, label, safetyFields) {
+async function testSurface(cdp, base, file, label, safetyFields) {
   console.log(`\n── ${label} (${file}) ───────────────────────────────`);
-  await navigate(cdp, `http://127.0.0.1:${port}/${file}`);
+  await navigate(cdp, `${base}/${file}`);
+  // The surface must actually render before its keyboard semantics can be
+  // asserted. A surface that never renders is a FAILURE, not a reason to
+  // report every downstream assertion as broken.
+  const rendered = await waitForSelector(cdp, '.playlist-card', DEPLOYED ? 25000 : 8000);
+  assert(`${label}: playlist cards rendered (populated fixture)`, rendered >= 1, `cards=${rendered}`);
 
   // --- 1. HOME VIEW IS NOT A KEYBOARD DEAD END ---
   const home = await evaluate(cdp, `(() => {
@@ -330,7 +357,6 @@ async function testSurface(cdp, port, file, label, safetyFields) {
     };
   })()`);
 
-  assert(`${label}: playlist cards rendered (populated fixture)`, home.cards >= 1, `cards=${home.cards}`);
   assert(`${label}: new-card rendered`, home.newCards >= 1, `newCards=${home.newCards}`);
   assert(`${label}: playlist card has role="button"`, home.cardRole === 'button', `role=${home.cardRole}`);
   assert(`${label}: playlist card is focusable (tabindex=0)`, home.cardTabindex === '0', `tabindex=${home.cardTabindex}`);
@@ -461,8 +487,9 @@ async function testSurface(cdp, port, file, label, safetyFields) {
 // ── Main ────────────────────────────────────────────────────────────────────
 async function main() {
   console.log('🔍 LiamTV A11y Keyboard Check — LIA-32');
-  const { server, port } = await startServer();
-  console.log(`  📡 Local server on port ${port}`);
+  const { server, port } = DEPLOYED ? { server: null, port: null } : await startServer();
+  const base = DEPLOYED ? BASE_URL : `http://127.0.0.1:${port}`;
+  console.log(DEPLOYED ? `  🌐 Target: deployed surface ${base}` : `  📡 Local server on port ${port}`);
   const { chrome, wsUrl, userDir } = await launchChrome();
   console.log(`  🌐 Chrome CDP ready`);
   const cdp = await cdpConnect(wsUrl);
@@ -477,7 +504,7 @@ async function main() {
     // harness. A prior audit had exactly that false-negative bug. If the
     // control fails the whole run must fail loudly.
     console.log('\n── POSITIVE CONTROL (harness self-test) ──────────');
-    await navigate(cdp, `http://127.0.0.1:${port}/manage.html`);
+    await navigate(cdp, `${base}/manage.html`);
     const ctrl = await evaluate(cdp, `(() => {
       window.__ctrlClicks = 0;
       const b = document.createElement('button');
@@ -498,17 +525,18 @@ async function main() {
     }
     await evaluate(cdp, `(() => { const b = document.getElementById('__ctrlButton'); if (b) b.remove(); return true; })()`);
 
-    await testSurface(cdp, port, 'manage.html', 'manage.html',
+    await testSurface(cdp, base, 'manage.html', 'manage.html',
       ['contentFilters', 'blacklistedChannels', 'minWatchCount', 'skipThreshold']);
     // playlist-manager.html has no #blacklistedChannels control (it manages
     // playlists, not per-playlist channel blacklists) -- assert the fields
     // that surface actually exposes rather than a shared list.
-    await testSurface(cdp, port, 'playlist-manager.html', 'playlist-manager.html',
+    await testSurface(cdp, base, 'playlist-manager.html', 'playlist-manager.html',
       ['contentFilters', 'minWatchCount', 'skipThreshold']);
 
     // ── tv-player viewport (WCAG 1.4.4) ────────────────────────────────────
     console.log('\n── tv-player.html (viewport zoom) ───────────────');
-    await navigate(cdp, `http://127.0.0.1:${port}/tv-player.html`);
+    await navigate(cdp, `${base}/tv-player.html`);
+    await waitForSelector(cdp, 'body', 15000);
     const vp = await evaluate(cdp, `(() => {
       const m = document.querySelector('meta[name="viewport"]');
       return m ? m.getAttribute('content') : null;
@@ -519,7 +547,7 @@ async function main() {
   } finally {
     try { cdp.close(); } catch { /* ignore */ }
     chrome.kill('SIGKILL');
-    server.close();
+    if (server) server.close();
     try { fs.rmSync(userDir, { recursive: true, force: true }); } catch { /* ignore */ }
   }
 
@@ -531,8 +559,8 @@ async function main() {
     for (const r of results.filter((x) => !x.pass)) console.log(`  ❌ ${r.name}${r.detail ? ` — ${r.detail}` : ''}`);
   }
   const out = { total: results.length, passed, failed, results };
-  fs.writeFileSync('/tmp/liamtv-a11y-keyboard-result.json', JSON.stringify(out, null, 2));
-  console.log('  📄 /tmp/liamtv-a11y-keyboard-result.json');
+  fs.writeFileSync(RESULT_FILE, JSON.stringify(out, null, 2));
+  console.log(`  📄 ${RESULT_FILE}`);
   process.exit(failed ? 1 : 0);
 }
 
