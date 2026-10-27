@@ -1,0 +1,45 @@
+name: Fail-closed content filter tests (LIA-18 / LIA-22)
+
+on:
+  push:
+    paths:
+      - 'api/**'
+      - 'tests/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/test-fail-closed.yml'
+  pull_request:
+    paths:
+      - 'api/**'
+      - 'tests/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/test-fail-closed.yml'
+  workflow_dispatch:
+
+jobs:
+  test-fail-closed:
+    name: npm run test:fail-closed
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Run fail-closed filter tests
+        run: npm run test:fail-closed
