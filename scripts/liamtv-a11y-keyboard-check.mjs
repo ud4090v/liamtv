@@ -351,15 +351,17 @@ async function testSurface(cdp, base, file, label, safetyFields) {
       cards: document.querySelectorAll('.playlist-card').length,
       newCards: document.querySelectorAll('.new-card').length,
       cardTabindex: card ? card.getAttribute('tabindex') : null,
+      cardBtnTabindex: card ? (card.querySelector('.playlist-card-btn') ? '0' : null) : null,
       cardRole: card ? card.getAttribute('role') : null,
+      cardIsNativeBtn: !!card && card.querySelector('.playlist-card-btn') !== null,
       newTabindex: newCard ? newCard.getAttribute('tabindex') : null,
       viewEditor: getComputedStyle(document.getElementById('view-editor')).display,
     };
   })()`);
 
   assert(`${label}: new-card rendered`, home.newCards >= 1, `newCards=${home.newCards}`);
-  assert(`${label}: playlist card has role="button"`, home.cardRole === 'button', `role=${home.cardRole}`);
-  assert(`${label}: playlist card is focusable (tabindex=0)`, home.cardTabindex === '0', `tabindex=${home.cardTabindex}`);
+  assert(`${label}: playlist card has role="button"`, home.cardRole === 'button' || (file === 'playlist-manager.html' && home.cardIsNativeBtn), `role=${home.cardRole} nativeBtn=${home.cardIsNativeBtn}`);
+  assert(`${label}: playlist card is focusable (tabindex=0)`, home.cardTabindex === '0' || (file === 'playlist-manager.html' && home.cardIsNativeBtn), `tabindex=${home.cardTabindex}`);
   assert(`${label}: new-card is focusable (tabindex=0)`, home.newTabindex === '0', `tabindex=${home.newTabindex}`);
 
   const homeSweep = await tabSweep(cdp, 45);
@@ -388,14 +390,22 @@ async function testSurface(cdp, base, file, label, safetyFields) {
     const card = document.querySelector('.playlist-card');
     const del = card && card.querySelector('.playlist-card-del');
     if (!del) return null;
-    card.focus();
+    const cardBtn = card.querySelector('.playlist-card-btn');
+    if (cardBtn) cardBtn.focus(); else card.focus();
     return getComputedStyle(del).display;
   })()`);
   assert(`${label}: delete button is revealed when the card has focus`,
     delVisible && delVisible !== 'none', `display=${delVisible}`);
 
+  // --- 1c. WCAG 4.1.2 — no role=button wrapper around a native button ---
+  // Only applies to playlist-manager.html (LIA-40 fix); manage.html still uses role=button divs.
+  if (file === 'playlist-manager.html') {
+    const nestingViolation = await evaluate(cdp, `document.querySelector('[role="button"] button')`);
+    assert(`${label}: no role=button element contains a native button`, nestingViolation === null, `found=[role=button] button`);
+  }
+
   // --- 2. KEYBOARD OPENS THE EDITOR VIEW ---
-  const focusedCard = await focusElement(cdp, '.playlist-card');
+  const focusedCard = await focusElement(cdp, file === 'playlist-manager.html' ? '.playlist-card-btn' : '.playlist-card');
   assert(`${label}: playlist card can take focus`, focusedCard);
   await pressEnter(cdp);
   await sleep(700);
