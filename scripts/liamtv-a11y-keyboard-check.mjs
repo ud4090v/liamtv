@@ -26,6 +26,11 @@ import os from 'node:os';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
+import {
+  resolveTarget,
+  MIN_DEPLOYED_MODE_DRIVER_VERSION,
+} from './liamtv-a11y-target.mjs';
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
 const CHROME = process.env.CHROME_PATH || '/usr/bin/google-chrome';
@@ -35,7 +40,16 @@ const CHROME = process.env.CHROME_PATH || '/usr/bin/google-chrome';
 // local static server is not started and the real deployed API is used.
 const BASE_URL = (process.env.BASE_URL || '').replace(/\/+$/, '');
 const RESULT_FILE = process.env.RESULT_FILE || '/tmp/liamtv-a11y-keyboard-result.json';
-const DEPLOYED = BASE_URL !== '';
+// LIA-37: DEPLOYED is only true when the resolved target actually IS a
+// deployed surface. It is re-assigned in main() from resolveTarget() so a
+// refused target can never leave this flag lying about what is under test.
+let DEPLOYED = BASE_URL !== '';
+
+// LIA-37: version marker for the driver's own capabilities.
+// 2 = supports deployed mode (honours BASE_URL). Bump when deployed-mode
+// support changes so an older checkout can be detected and refused loudly
+// instead of silently serving local files under a deployed-surface label.
+const DRIVER_VERSION = 2;
 
 // ── Populated fixture ───────────────────────────────────────────────────────
 // Two real-looking playlists so playlist-card elements actually render.
@@ -497,9 +511,57 @@ async function testSurface(cdp, base, file, label, safetyFields) {
 // ── Main ────────────────────────────────────────────────────────────────────
 async function main() {
   console.log('🔍 LiamTV A11y Keyboard Check — LIA-32');
+
+  // LIA-37: resolve and pin what is actually under test BEFORE any assertion.
+  // If deployed mode was requested but this checkout cannot honour it (or the
+  // URL does not answer), we fail loudly instead of silently serving local
+  // files under a deployed-surface label.
+  const target = await resolveTarget({
+    baseUrl: BASE_URL,
+    driverVersion: DRIVER_VERSION,
+    minDriverVersion: MIN_DEPLOYED_MODE_DRIVER_VERSION,
+    cwd: REPO_ROOT,
+    scriptPath: fileURLToPath(import.meta.url),
+  });
+
+  console.log(`  📌 Ref under test: ${target.ref} (${target.branch})`);
+  if (target.refError) {
+    console.log(`  ⚠️  Could not resolve the git ref: ${target.refError}`);
+  }
+  console.log(`  🧩 Driver version: ${target.driverVersion}`);
+
+  if (!target.ok) {
+    console.error('\n❌ Unsupported target — refusing to run.');
+    console.error(`   ${target.error}`);
+    const out = {
+      mode: 'unsupported',
+      requestedMode: target.requestedMode,
+      baseUrl: target.baseUrl,
+      ref: target.ref,
+      branch: target.branch,
+      driverVersion: target.driverVersion,
+      target: target.baseUrl,
+      total: 0,
+      passed: 0,
+      failed: true,
+      error: target.error,
+      results: [],
+    };
+    try {
+      fs.writeFileSync(RESULT_FILE, JSON.stringify(out, null, 2));
+      console.error(`  📄 ${RESULT_FILE}`);
+    } catch (e) {
+      console.error(`  ⚠️  Could not write ${RESULT_FILE}: ${e && e.message ? e.message : e}`);
+    }
+    process.exit(2);
+  }
+
+  DEPLOYED = target.mode === 'deployed';
   const { server, port } = DEPLOYED ? { server: null, port: null } : await startServer();
-  const base = DEPLOYED ? BASE_URL : `http://127.0.0.1:${port}`;
-  console.log(DEPLOYED ? `  🌐 Target: deployed surface ${base}` : `  📡 Local server on port ${port}`);
+  const base = DEPLOYED ? target.baseUrl : `http://127.0.0.1:${port}`;
+  console.log(DEPLOYED
+    ? `  🌐 Target: deployed surface ${base} (ref ${target.ref})`
+    : `  📡 Target: local checkout (ref ${target.ref})`);
   const { chrome, wsUrl, userDir } = await launchChrome();
   console.log(`  🌐 Chrome CDP ready`);
   const cdp = await cdpConnect(wsUrl);
@@ -568,7 +630,21 @@ async function main() {
     console.log('\nFailed assertions:');
     for (const r of results.filter((x) => !x.pass)) console.log(`  ❌ ${r.name}${r.detail ? ` — ${r.detail}` : ''}`);
   }
-  const out = { total: results.length, passed, failed, results };
+  // LIA-37: the result file must be self-describing. A reader of the file
+  // alone has to be able to tell exactly what was tested.
+  const out = {
+    mode: DEPLOYED ? 'deployed' : 'local',
+    requestedMode: target.requestedMode,
+    baseUrl: base,
+    ref: target.ref,
+    branch: target.branch,
+    driverVersion: target.driverVersion,
+    target: DEPLOYED ? `deployed surface ${base}` : `local checkout`,
+    total: results.length,
+    passed,
+    failed,
+    results,
+  };
   fs.writeFileSync(RESULT_FILE, JSON.stringify(out, null, 2));
   console.log(`  📄 ${RESULT_FILE}`);
   process.exit(failed ? 1 : 0);
