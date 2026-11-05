@@ -61,7 +61,8 @@ header{background:rgba(11,11,20,0.95);backdrop-filter:blur(20px);border-bottom:1
 .playlist-card-info{padding:12px 14px}
 .playlist-card-name{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .playlist-card-count{font-size:12px;color:var(--muted);margin-top:3px}
-.playlist-card-del{position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.75);border:none;color:#ff8080;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px;display:none;align-items:center;justify-content:center;line-height:1}
+.playlist-card-del{position:absolute;top:8px;right:8px;z-index:2;background:rgba(0,0,0,0.75);border:none;color:#ff8080;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px;display:none;align-items:center;justify-content:center;line-height:1}
+.playlist-card-btn{background:none;border:none;padding:0;margin:0;cursor:pointer;text-align:left;display:block;width:100%;color:inherit;font:inherit}
 .playlist-card:hover .playlist-card-del{display:flex}
 .playlist-card:focus-within .playlist-card-del{display:flex}
 .playlist-card-del:hover{background:rgba(255,60,60,0.45)}
@@ -410,15 +411,17 @@ async function loadHome() {
   }
 
   let html = playlists.map(p => `
-    <div class="playlist-card" role="button" tabindex="0" onclick="openPlaylist('${escAttr(p.name)}')" onkeydown="if(event.target.closest('button'))return;if(event.key==='Enter'||event.key===' '){event.preventDefault();openPlaylist('${escAttr(p.name)}');}">
-      ${p.thumb
+    <div class="playlist-card">
+      <button class="playlist-card-btn" onclick="openPlaylist('${escAttr(p.name)}')" aria-label="${escAttr(p.name)}">
+        ${p.thumb
         ? `<img class="playlist-card-thumb" src="${escAttr(p.thumb)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/><div class="playlist-card-placeholder" style="display:none">🎬</div>`
         : `<div class="playlist-card-placeholder">🎬</div>`}
-      <div class="playlist-card-info">
-        <div class="playlist-card-name">${escHtml(p.title || p.name)}</div>
-        <div class="playlist-card-count">${p.videoCount} video${p.videoCount !== 1 ? 's' : ''}</div>
-      </div>
-      <button class="playlist-card-del" onclick="event.stopPropagation();deletePlaylistByName('${escAttr(p.name)}')" title="Delete">✕</button>
+        <div class="playlist-card-info">
+          <div class="playlist-card-name">${escHtml(p.title || p.name)}</div>
+          <div class="playlist-card-count">${p.videoCount} video${p.videoCount !== 1 ? 's' : ''}</div>
+        </div>
+      </button>
+      <button class="playlist-card-del" onclick="event.stopPropagation();deletePlaylistByName('${escAttr(p.name)}')" title="Delete playlist">✕</button>
     </div>`).join('');
 
   html += `<div class="new-card" role="button" tabindex="0" onclick="showNewPlaylistModal()" onkeydown="if(event.target.closest('button'))return;if(event.key==='Enter'||event.key===' '){event.preventDefault();showNewPlaylistModal();}"><div class="plus">＋</div><div>New Playlist</div></div>`;
