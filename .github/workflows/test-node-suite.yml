@@ -58,7 +58,9 @@ jobs:
         run: |
           set -euo pipefail
           TAP=/tmp/node-test.tap
-          EXPECTED='tests/liamtv-a11y-driver-honours-target.test.mjs'
+          # Node's TAP reporter emits suite titles, not file paths, so the
+          # LIA-37 file is proven to have run by its unique describe() title.
+          EXPECTED='LIA-37: a11y driver target resolution'
           if ! grep -qF "$EXPECTED" "$TAP"; then
             echo "::error::Expected the node test run to execute $EXPECTED"
             echo '--- TAP output ---'
