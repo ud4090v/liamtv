@@ -1,2 +1,5 @@
 .vercel
 node_modules/
+
+# LIA-37 local a11y driver result artifacts (never commit)
+.result-lia37/
